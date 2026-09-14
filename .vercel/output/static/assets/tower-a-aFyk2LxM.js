@@ -1,0 +1,1 @@
+import{u as e}from"./index-BBg8fwfY.js";import{t}from"./tower-page-DDImHpDs.js";var n=e(),r=()=>(0,n.jsx)(t,{tower:`A`});export{r as component};

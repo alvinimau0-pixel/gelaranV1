@@ -1,0 +1,142 @@
+import { report } from "@/lib/report-data";
+
+export const ITEM_META: Record<
+  string,
+  { package: "Cold Water" | "Sanitary" | "Irrigation"; short: string; detail: string; drawing: string }
+> = {
+  "PIPE SLEEVE": {
+    package: "Cold Water",
+    short: "Sleeve",
+    detail: "Slab penetration sleeve for CW riser and floor offtakes. One set per typical floor.",
+    drawing: "CW-R-01",
+  },
+  PUMP: {
+    package: "Cold Water",
+    short: "Pump",
+    detail: "Transfer / booster pump set at L31 plant. N/A on typical floors.",
+    drawing: "CW-P-01",
+  },
+  "PUMP CONTROL PANEL": {
+    package: "Cold Water",
+    short: "Panel",
+    detail: "Pump starter and control panel, L31 plant room.",
+    drawing: "CW-P-01",
+  },
+  "TRANSFER PUMP PIPES": {
+    package: "Cold Water",
+    short: "TP pipes",
+    detail: "Stainless steel transfer pump pipe, riser from L13 to L31 including elbows, check valves and sampling points.",
+    drawing: "CW-P-01",
+  },
+  "L31 & 31M ROOF PIPING": {
+    package: "Cold Water",
+    short: "Roof",
+    detail: "Roof manifold and 31M interconnection piping. Lot work at plant level only.",
+    drawing: "RF-31",
+  },
+  "CW TENANT": {
+    package: "Cold Water",
+    short: "CW tenant",
+    detail: "Tenant cold-water pipework and offtakes on typical floors.",
+    drawing: "TYP-FL",
+  },
+  "BACKSHAFT CW & FW TOILETS": {
+    package: "Cold Water",
+    short: "Backshaft",
+    detail: "Backshaft CW and flushing water to toilet cores.",
+    drawing: "SAN-T-01",
+  },
+  "HOSEREEL FLOORTRAP & STACK": {
+    package: "Sanitary",
+    short: "Hosereel",
+    detail: "Hosereel outlet, floor trap and vertical stack including fittings and supports.",
+    drawing: "SAN-R-01",
+  },
+  "SANITARY TENANT": {
+    package: "Sanitary",
+    short: "San tenant",
+    detail: "Tenant sanitary waste and vent offtakes.",
+    drawing: "SAN-R-01",
+  },
+  "TOILET PIPE DISTRIBUTION & HACKING": {
+    package: "Sanitary",
+    short: "Toilet dist.",
+    detail: "Toilet high-level distribution, droppers and hacking for four toilet sets per floor.",
+    drawing: "SAN-T-01",
+  },
+  "SANITARY TOILETS": {
+    package: "Sanitary",
+    short: "Toilets",
+    detail: "Toilet UPVC waste/vent stacks, traps and floor outlets.",
+    drawing: "SAN-T-01",
+  },
+  "SANITARY WARES INSTALLATION": {
+    package: "Sanitary",
+    short: "Wares",
+    detail: "WC pans, wash basins and sanitary ware fit-off.",
+    drawing: "SAN-T-01",
+  },
+  "IRRIGATION OUTLET": {
+    package: "Irrigation",
+    short: "Irr. out",
+    detail: "Irrigation outlet points on typical floors / landscape zones.",
+    drawing: "IRR-01",
+  },
+  "IRRIGATION INLET": {
+    package: "Irrigation",
+    short: "Irr. in",
+    detail: "Irrigation inlet and isolation to the floor loop.",
+    drawing: "IRR-01",
+  },
+  "IRRIGATION WIRING": {
+    package: "Irrigation",
+    short: "Wiring",
+    detail: "Control cabling from valves to irrigation panel.",
+    drawing: "IRR-01",
+  },
+  "IRRIGATION CONTROL PANEL": {
+    package: "Irrigation",
+    short: "Irr. panel",
+    detail: "Irrigation controller. Plant / roof only.",
+    drawing: "IRR-01",
+  },
+};
+
+export const PACKAGES = ["All", "Cold Water", "Sanitary", "Irrigation"] as const;
+
+export function itemsForPackage(pkg: (typeof PACKAGES)[number]) {
+  if (pkg === "All") return report.items;
+  return report.items.filter((i) => ITEM_META[i]?.package === pkg);
+}
+
+export function cellTone(v: number | null | undefined) {
+  if (v == null) return "bg-surface-2 text-subtle";
+  if (v >= 0.9) return "bg-ok-bg text-ok";
+  if (v >= 0.5) return "bg-accent/15 text-ink";
+  if (v > 0) return "bg-warn-bg text-warn";
+  return "bg-bad-bg text-bad";
+}
+
+export function relatedMaterial(item: string) {
+  const key = item.toLowerCase();
+  return report.orders.filter((o) => {
+    const m = o.material.toLowerCase();
+    if (key.includes("sleeve")) return m.includes("sleeve");
+    if (key.includes("transfer")) return m.includes("transfer");
+    if (key.includes("pump control")) return m.includes("control panel") && o.package === "Cold Water";
+    if (key === "pump") return m === "pump";
+    if (key.includes("roof")) return m.includes("roof");
+    if (key.includes("cw tenant")) return m.includes("cw tenant");
+    if (key.includes("backshaft")) return m.includes("backshaft");
+    if (key.includes("hosereel")) return m.includes("hosereel") || m.includes("floor trap") || m.includes("stack");
+    if (key.includes("sanitary tenant")) return m.includes("sanitary tenant");
+    if (key.includes("distribution")) return m.includes("toilet distribution");
+    if (key.includes("sanitary toilets")) return m.includes("wc") || m.includes("basin");
+    if (key.includes("wares")) return m.includes("wares");
+    if (key.includes("outlet")) return m.includes("irrigation outlet");
+    if (key.includes("inlet")) return m.includes("irrigation inlet");
+    if (key.includes("wiring")) return m.includes("cable");
+    if (key.includes("irrigation control")) return m.includes("irrigation control");
+    return false;
+  });
+}
