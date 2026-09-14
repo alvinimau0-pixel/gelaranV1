@@ -15,6 +15,7 @@ import { Route as LibraryRouteImport } from './routes/library'
 import { Route as ManpowerRouteImport } from './routes/manpower'
 import { Route as MaterialRouteImport } from './routes/material'
 import { Route as MatrixRouteImport } from './routes/matrix'
+import { Route as PhotosRouteImport } from './routes/photos'
 import { Route as PoLogRouteImport } from './routes/po-log'
 import { Route as TowerARouteImport } from './routes/tower-a'
 import { Route as TowerBRouteImport } from './routes/tower-b'
@@ -49,6 +50,11 @@ const MatrixRoute = MatrixRouteImport.update({
   path: '/matrix',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PhotosRoute = PhotosRouteImport.update({
+  id: '/photos',
+  path: '/photos',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PoLogRoute = PoLogRouteImport.update({
   id: '/po-log',
   path: '/po-log',
@@ -72,6 +78,7 @@ export interface FileRoutesByFullPath {
   '/manpower': typeof ManpowerRoute
   '/material': typeof MaterialRoute
   '/matrix': typeof MatrixRoute
+  '/photos': typeof PhotosRoute
   '/po-log': typeof PoLogRoute
   '/tower-a': typeof TowerARoute
   '/tower-b': typeof TowerBRoute
@@ -83,6 +90,7 @@ export interface FileRoutesByTo {
   '/manpower': typeof ManpowerRoute
   '/material': typeof MaterialRoute
   '/matrix': typeof MatrixRoute
+  '/photos': typeof PhotosRoute
   '/po-log': typeof PoLogRoute
   '/tower-a': typeof TowerARoute
   '/tower-b': typeof TowerBRoute
@@ -95,6 +103,7 @@ export interface FileRoutesById {
   '/manpower': typeof ManpowerRoute
   '/material': typeof MaterialRoute
   '/matrix': typeof MatrixRoute
+  '/photos': typeof PhotosRoute
   '/po-log': typeof PoLogRoute
   '/tower-a': typeof TowerARoute
   '/tower-b': typeof TowerBRoute
@@ -108,6 +117,7 @@ export interface FileRouteTypes {
     | '/manpower'
     | '/material'
     | '/matrix'
+    | '/photos'
     | '/po-log'
     | '/tower-a'
     | '/tower-b'
@@ -119,6 +129,7 @@ export interface FileRouteTypes {
     | '/manpower'
     | '/material'
     | '/matrix'
+    | '/photos'
     | '/po-log'
     | '/tower-a'
     | '/tower-b'
@@ -130,6 +141,7 @@ export interface FileRouteTypes {
     | '/manpower'
     | '/material'
     | '/matrix'
+    | '/photos'
     | '/po-log'
     | '/tower-a'
     | '/tower-b'
@@ -142,6 +154,7 @@ export interface RootRouteChildren {
   ManpowerRoute: typeof ManpowerRoute
   MaterialRoute: typeof MaterialRoute
   MatrixRoute: typeof MatrixRoute
+  PhotosRoute: typeof PhotosRoute
   PoLogRoute: typeof PoLogRoute
   TowerARoute: typeof TowerARoute
   TowerBRoute: typeof TowerBRoute
@@ -191,6 +204,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MatrixRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/photos': {
+      id: '/photos'
+      path: '/photos'
+      fullPath: '/photos'
+      preLoaderRoute: typeof PhotosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/po-log': {
       id: '/po-log'
       path: '/po-log'
@@ -222,6 +242,7 @@ const rootRouteChildren: RootRouteChildren = {
   ManpowerRoute: ManpowerRoute,
   MaterialRoute: MaterialRoute,
   MatrixRoute: MatrixRoute,
+  PhotosRoute: PhotosRoute,
   PoLogRoute: PoLogRoute,
   TowerARoute: TowerARoute,
   TowerBRoute: TowerBRoute,

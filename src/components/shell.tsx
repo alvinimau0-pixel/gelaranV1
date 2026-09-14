@@ -1,6 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   Building2,
+  Camera,
   Droplets,
   FileSpreadsheet,
   Grid3x3,
@@ -9,15 +10,18 @@ import {
   Library,
   Menu,
   Package,
+  Pencil,
   Truck,
   X,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { report } from "@/lib/report-data";
+import { useAppStore } from "@/lib/store";
+import { AiAssistant } from "@/components/ai-assistant";
 
 const NAV = [
   { to: "/", label: "Overview", icon: LayoutDashboard },
+  { to: "/photos", label: "Photos", icon: Camera },
   { to: "/matrix", label: "MEP matrix", icon: Grid3x3 },
   { to: "/tower-a", label: "Tower A", icon: Building2 },
   { to: "/tower-b", label: "Tower B", icon: Building2 },
@@ -31,6 +35,9 @@ const NAV = [
 export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [open, setOpen] = useState(false);
+  const report = useAppStore((s) => s.report);
+  const editMode = useAppStore((s) => s.editMode);
+  const setEditMode = useAppStore((s) => s.setEditMode);
 
   return (
     <div className="min-h-dvh">
@@ -51,16 +58,44 @@ export function Shell({ children }: { children: React.ReactNode }) {
             <span className="rounded-full bg-surface-2 px-3 py-1 font-medium text-fg">
               {report.meta.reportDate}
             </span>
-            <span className="rounded-full bg-ok-bg px-3 py-1 font-medium text-ok">Fair · Day</span>
+            <span className="rounded-full bg-ok-bg px-3 py-1 font-medium text-ok">
+              {report.site.weather} · {report.site.shift}
+            </span>
+            <button
+              type="button"
+              onClick={() => setEditMode(!editMode)}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-medium transition-colors",
+                editMode
+                  ? "bg-accent text-accent-fg"
+                  : "bg-surface-2 text-fg hover:bg-ink hover:text-accent-fg",
+              )}
+            >
+              <Pencil className="size-3" />
+              {editMode ? "Editing" : "Edit mode"}
+            </button>
           </div>
-          <button
-            type="button"
-            className="inline-flex size-11 items-center justify-center rounded-md border border-border bg-surface md:hidden"
-            aria-label={open ? "Close menu" : "Open menu"}
-            onClick={() => setOpen((v) => !v)}
-          >
-            {open ? <X className="size-5" /> : <Menu className="size-5" />}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setEditMode(!editMode)}
+              className={cn(
+                "inline-flex size-11 items-center justify-center rounded-md border border-border lg:hidden",
+                editMode ? "bg-accent text-accent-fg" : "bg-surface",
+              )}
+              aria-label="Toggle edit mode"
+            >
+              <Pencil className="size-4" />
+            </button>
+            <button
+              type="button"
+              className="inline-flex size-11 items-center justify-center rounded-md border border-border bg-surface md:hidden"
+              aria-label={open ? "Close menu" : "Open menu"}
+              onClick={() => setOpen((v) => !v)}
+            >
+              {open ? <X className="size-5" /> : <Menu className="size-5" />}
+            </button>
+          </div>
         </div>
         <nav className="mx-auto hidden max-w-7xl gap-1 overflow-x-auto px-4 pb-2 sm:px-6 md:flex">
           {NAV.map((item) => {
@@ -107,6 +142,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
         ) : null}
       </header>
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">{children}</main>
+      <AiAssistant />
     </div>
   );
 }
