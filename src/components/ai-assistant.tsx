@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Bot, Send, Sparkles, X } from "lucide-react";
 import { useAppStore } from "@/lib/store";
-import { pct, rm } from "@/lib/utils";
-import { cn } from "@/lib/utils";
+import { pct, cn } from "@/lib/utils";
 
 type Msg = { role: "user" | "assistant"; text: string };
 
@@ -10,24 +9,27 @@ function applyCommand(text: string): string {
   const store = useAppStore.getState();
   const lower = text.toLowerCase().trim();
 
-  // Men / on site
-  const menMatch = lower.match(/(?:set|update)?\s*(?:on\s*site|men|manpower)\s*(?:to|=)?\s*(\d+)/i)
-    || lower.match(/(\d+)\s*(?:men|people|workers)\s*(?:on\s*site)?/i);
+  const menMatch =
+    lower.match(/(?:set|update)?\s*(?:on\s*site|men|manpower)\s*(?:to|=)?\s*(\d+)/i) ||
+    lower.match(/(\d+)\s*(?:men|people|workers)\s*(?:on\s*site)?/i);
   if (menMatch) {
     const n = Number(menMatch[1]);
     store.updateSite({ men: n });
     return `Updated on-site manpower to **${n}**.`;
   }
 
-  // Weather / shift / today focus
-  const weatherMatch = lower.match(/(?:set|update)?\s*weather\s*(?:to|=)?\s*["']?([a-zA-Z\s]+)["']?/i);
+  const weatherMatch = lower.match(
+    /(?:set|update)?\s*weather\s*(?:to|=)?\s*["']?([a-zA-Z\s]+)["']?/i,
+  );
   if (weatherMatch) {
     const w = weatherMatch[1].trim();
     store.updateSite({ weather: w });
     return `Weather set to **${w}**.`;
   }
 
-  const todayMatch = lower.match(/(?:set|update)?\s*(?:today|focus|work)\s*(?:to|=|:)?\s*["']?(.+?)["']?$/i);
+  const todayMatch = lower.match(
+    /(?:set|update)?\s*(?:today|focus|work)\s*(?:to|=|:)?\s*["']?(.+?)["']?$/i,
+  );
   if (todayMatch && !lower.includes("photo")) {
     const t = todayMatch[1].trim();
     if (t.length > 2 && t.length < 80) {
@@ -36,12 +38,13 @@ function applyCommand(text: string): string {
     }
   }
 
-  // Package % e.g. "cold water 52%" or "set overall to 40%"
-  const pctMatch = lower.match(/(cold\s*water|sanitary|irrigation|overall)\s*(?:to|=)?\s*(\d+(?:\.\d+)?)\s*%?/i);
+  const pctMatch = lower.match(
+    /(cold\s*water|sanitary|irrigation|overall)\s*(?:to|=)?\s*(\d+(?:\.\d+)?)\s*%?/i,
+  );
   if (pctMatch) {
     const key = pctMatch[1].replace(/\s+/g, "").toLowerCase();
     const val = Number(pctMatch[2]) / 100;
-    const map: Record<string, keyof typeof store.report.site> = {
+    const map: Record<string, "coldWater" | "sanitary" | "irrigation" | "overall"> = {
       coldwater: "coldWater",
       sanitary: "sanitary",
       irrigation: "irrigation",
@@ -49,12 +52,11 @@ function applyCommand(text: string): string {
     };
     const field = map[key];
     if (field) {
-      store.updateSite({ [field]: val } as any);
+      store.updateSite({ [field]: val });
       return `Updated **${field}** to **${pct(val)}**.`;
     }
   }
 
-  // Status summary
   if (/status|summary|progress|how.*(going|doing)|dashboard/i.test(lower)) {
     const s = store.report.site;
     return [
@@ -66,7 +68,6 @@ function applyCommand(text: string): string {
     ].join("\n");
   }
 
-  // Help
   if (/help|what can you|commands/i.test(lower)) {
     return [
       `I can help you update the live dashboard. Try:`,
@@ -88,7 +89,7 @@ export function AiAssistant() {
   const [msgs, setMsgs] = useState<Msg[]>([
     {
       role: "assistant",
-      text: "Hi — I'm your site assistant. Ask for status or tell me updates (e.g. \"set on site to 30\", \"cold water 52%\").",
+      text: 'Hi — I\'m your site assistant. Ask for status or tell me updates (e.g. "set on site to 30", "cold water 52%").',
     },
   ]);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -140,11 +141,7 @@ export function AiAssistant() {
                 )}
               >
                 {m.text.split("**").map((part, j) =>
-                  j % 2 === 1 ? (
-                    <strong key={j}>{part}</strong>
-                  ) : (
-                    <span key={j}>{part}</span>
-                  ),
+                  j % 2 === 1 ? <strong key={j}>{part}</strong> : <span key={j}>{part}</span>,
                 )}
               </div>
             ))}
