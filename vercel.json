@@ -2,6 +2,5 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "tanstack-start",
   "installCommand": "npm install",
-  "buildCommand": "npm run build",
-  "outputDirectory": ".vercel/output"
+  "buildCommand": "npm run build"
 }
