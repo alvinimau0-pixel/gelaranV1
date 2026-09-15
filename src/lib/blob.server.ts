@@ -38,6 +38,17 @@ export async function uploadBase64Image(
   if (buffer.byteLength > MAX_UPLOAD_BYTES) {
     throw new Error("Image too large (max 8MB).");
   }
+  // Keep uploads functional when a personal Vercel project has not yet had a
+  // Blob store connected. The client already sends a resized JPEG, so this
+  // fallback is bounded by the same 8MB cap and is stored in the existing
+  // text URL column. Once BLOB_READ_WRITE_TOKEN is available, new uploads use
+  // Blob automatically without any code or data migration.
+  if (!process.env.BLOB_READ_WRITE_TOKEN?.trim()) {
+    return {
+      url: `data:${contentType};base64,${base64Data}`,
+      pathname: `${folder}/inline-${Date.now()}`,
+    };
+  }
   const { put } = await import("@vercel/blob");
   const ext = contentType === "image/png" ? "png" : contentType === "image/webp" ? "webp" : "jpg";
   const key = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
@@ -52,7 +63,7 @@ export async function uploadBase64Image(
 /** Best-effort delete — never throws (missing token, already-gone key, etc). */
 export async function deleteImage(url: string | null | undefined): Promise<void> {
   assertServer();
-  if (!url) return;
+  if (!url || url.startsWith("data:")) return;
   try {
     const { del } = await import("@vercel/blob");
     await del(url);

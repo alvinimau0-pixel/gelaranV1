@@ -102,7 +102,7 @@ function PhotosPage() {
       if (fileRef.current) fileRef.current.value = "";
     } catch (err) {
       console.error("[photos] upload failed:", err);
-      setUploadError("Upload failed. Check your connection and try again.");
+      setUploadError(err instanceof Error ? err.message : "Upload failed. Check your connection and try again.");
     } finally {
       setUploading(false);
     }
