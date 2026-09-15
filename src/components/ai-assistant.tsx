@@ -64,7 +64,7 @@ function applyCommand(text: string): string {
       `· Overall ${pct(s.overall)} · Cold water ${pct(s.coldWater)} · Sanitary ${pct(s.sanitary)} · Irrigation ${pct(s.irrigation)}`,
       `· On site: ${s.men} · Weather: ${s.weather} · Shift: ${s.shift}`,
       `· Today: ${s.today}`,
-      `· Photos saved: ${store.photos.length}`,
+      `· Photos: shared in Photos at home`,
     ].join("\n");
   }
 
