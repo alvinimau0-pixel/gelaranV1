@@ -402,12 +402,13 @@ function insertBeforeHeadClose(html, snippet) {
 
 export function normalizeHeadContext(ctx = {}) {
   const cwd = ctx.cwd ?? process.cwd();
-  // Middleware passes a baked `site`. Still consult the workspace so a
-  // public/og.jpg generated after that snapshot (or missed by a wrong cwd)
-  // wins over the og.grok.me placeholder. Vercel has no public/ to read, so
-  // a correct bake is unchanged.
+  // Production call sites pass a baked `site` explicitly. Keep the generic
+  // injector deterministic when no site is supplied so callers/tests can use
+  // document title, host, or appName without inheriting local workspace data.
+  // When a site is supplied, still consult the workspace so a public/og.jpg
+  // generated after the snapshot wins over the og.grok.me placeholder.
   const site = applyCustomCardFromFs(
-    ctx.site !== undefined ? ctx.site : snapshotOgIdentity(cwd).site,
+    ctx.site !== undefined ? ctx.site : {},
     cwd,
   );
   const appName = resolveOgTitle(site, ctx.appName ?? DEFAULT_APP_NAME, ctx.host ?? "");
