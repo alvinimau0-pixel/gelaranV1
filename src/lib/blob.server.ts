@@ -49,15 +49,26 @@ export async function uploadBase64Image(
       pathname: `${folder}/inline-${Date.now()}`,
     };
   }
-  const { put } = await import("@vercel/blob");
-  const ext = contentType === "image/png" ? "png" : contentType === "image/webp" ? "webp" : "jpg";
-  const key = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-  const result = await put(key, buffer, {
-    access: "public",
-    contentType,
-    addRandomSuffix: false,
-  });
-  return { url: result.url, pathname: result.pathname };
+  try {
+    const { put } = await import("@vercel/blob");
+    const ext = contentType === "image/png" ? "png" : contentType === "image/webp" ? "webp" : "jpg";
+    const key = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    const result = await put(key, buffer, {
+      access: "public",
+      contentType,
+      addRandomSuffix: false,
+    });
+    return { url: result.url, pathname: result.pathname };
+  } catch (err) {
+    // A stale or incorrectly connected Blob token must not make the whole
+    // upload feature unusable. Keep the compressed image in the database until
+    // the Blob integration is repaired; future uploads will use Blob again.
+    console.error("[blob] upload failed; using database fallback:", err);
+    return {
+      url: `data:${contentType};base64,${base64Data}`,
+      pathname: `${folder}/inline-${Date.now()}`,
+    };
+  }
 }
 
 /** Best-effort delete — never throws (missing token, already-gone key, etc). */
