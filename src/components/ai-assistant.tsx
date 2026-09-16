@@ -9,6 +9,7 @@ import {
 } from "@/lib/attendance";
 import { useAppStore } from "@/lib/store";
 import { pct, cn } from "@/lib/utils";
+import { interpretAiCommand, type AiIntent } from "@/lib/ai-command";
 
 type Msg = { role: "user" | "assistant"; text: string };
 type ProgressField = "overall" | "coldWater" | "sanitary" | "irrigation";
@@ -79,7 +80,22 @@ function refreshAttendanceTable() {
   window.dispatchEvent(new Event("gelaran:attendance-updated"));
 }
 
-export async function applyCommand(text: string): Promise<string> {
+function intentToCommand(intent: AiIntent): string | null {
+  const date = intent.date ?? "today";
+  if (intent.action === "help") return "help";
+  if (intent.action === "status") return "status";
+  if (intent.action === "attendance_summary") return `attendance ${date}`;
+  if (intent.action === "update_attendance" && intent.workerName && intent.status) return `mark "${intent.workerName}" ${intent.status.toLowerCase()} ${date}`;
+  if (intent.action === "update_team_attendance" && intent.team && intent.status) return `mark everyone in ${intent.team} ${intent.status.toLowerCase()} ${date}`;
+  if (intent.action === "update_progress" && intent.field && intent.value !== null) return `set ${intent.field} progress to ${intent.value}%`;
+  if (intent.action === "adjust_progress" && intent.field && intent.delta !== null) return `${intent.delta >= 0 ? "increase" : "decrease"} ${intent.field} by ${Math.abs(intent.delta)}%`;
+  if (intent.action === "update_manpower" && intent.value !== null) return `set on site to ${intent.value}`;
+  if (intent.action === "update_weather" && intent.text) return `set weather to "${intent.text}"`;
+  if (intent.action === "update_focus" && intent.text) return `set today focus to "${intent.text}"`;
+  return null;
+}
+
+export async function applyCommand(text: string, useAi = true): Promise<string> {
   const store = useAppStore.getState();
   const lower = text.toLowerCase().replace(/[“”]/g, '"').trim();
 
@@ -201,6 +217,16 @@ export async function applyCommand(text: string): Promise<string> {
     if (focus.length < 3 || focus.length > 100) return "Please provide a work focus between 3 and 100 characters.";
     store.updateSite({ today: focus });
     return `Done — today's work focus is now **${focus}**.`;
+  }
+
+  if (useAi) {
+    try {
+      const intent = await interpretAiCommand({ data: { text: text.trim() } });
+      const command = intent ? intentToCommand(intent) : null;
+      if (command) return applyCommand(command, false);
+    } catch (error) {
+      console.warn("[ai-assistant] structured interpreter unavailable; using rule fallback", error);
+    }
   }
 
   return "I did not change anything. Type **help** for examples, or try **mark SOLIHIN present today**.";
