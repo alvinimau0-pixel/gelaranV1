@@ -58,6 +58,25 @@ export function weekdayOf(year: number, month: number, day: number): number {
 
 const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Expected YYYY-MM-DD");
 
+function fallbackWorkers(): Worker[] {
+  const teamByName = new Map<string, string>();
+  for (const t of seedReport.teams) {
+    teamByName.set(t.leader, t.team);
+    for (const assistant of t.assistants) teamByName.set(assistant, t.team);
+  }
+  return seedReport.people.map((person, index) => ({
+    id: -(index + 1),
+    employeeCode: null,
+    name: person.name,
+    trade: "GENERAL WORKER",
+    team: teamByName.get(person.name) ?? null,
+    subcontractor: null,
+    phone: null,
+    photoUrl: null,
+    active: true,
+  }));
+}
+
 /** One-time bootstrap: seed `workers` from the existing report data the first
  *  time the table is empty, so the crew already in report-data.ts shows up
  *  immediately instead of starting from a blank directory. */
@@ -81,42 +100,52 @@ async function seedWorkersIfEmpty(): Promise<void> {
 }
 
 export const listWorkers = createServerFn({ method: "GET" }).handler(async (): Promise<Worker[]> => {
-  await seedWorkersIfEmpty();
-  const sql = await getSql();
-  const rows = await sql<{
-    id: number;
-    employee_code: string | null;
-    name: string;
-    trade: string | null;
-    team: string | null;
-    subcontractor: string | null;
-    phone: string | null;
-    photo_url: string | null;
-    active: boolean;
-  }>`select id, employee_code, name, trade, team, subcontractor, phone, photo_url, active
-     from workers where active = true order by name asc`;
-  return rows.map((r) => ({
-    id: r.id,
-    employeeCode: r.employee_code,
-    name: r.name,
-    trade: r.trade,
-    team: r.team,
-    subcontractor: r.subcontractor,
-    phone: r.phone,
-    photoUrl: r.photo_url,
-    active: r.active,
-  }));
+  try {
+    await seedWorkersIfEmpty();
+    const sql = await getSql();
+    const rows = await sql<{
+      id: number;
+      employee_code: string | null;
+      name: string;
+      trade: string | null;
+      team: string | null;
+      subcontractor: string | null;
+      phone: string | null;
+      photo_url: string | null;
+      active: boolean;
+    }>`select id, employee_code, name, trade, team, subcontractor, phone, photo_url, active
+       from workers where active = true order by name asc`;
+    return rows.map((r) => ({
+      id: r.id,
+      employeeCode: r.employee_code,
+      name: r.name,
+      trade: r.trade,
+      team: r.team,
+      subcontractor: r.subcontractor,
+      phone: r.phone,
+      photoUrl: r.photo_url,
+      active: r.active,
+    }));
+  } catch (error) {
+    console.error("[attendance] worker store unavailable; using report crew fallback", error);
+    return fallbackWorkers();
+  }
 });
 
 export const listAttendanceForMonth = createServerFn({ method: "GET" })
   .validator(z.object({ year: z.number().int(), month: z.number().int().min(1).max(12) }))
   .handler(async ({ data }): Promise<AttendanceRow[]> => {
-    const sql = await getSql();
-    const rows = await sql<{ worker_id: number; attendance_date: string; status: AttendanceStatus }>`
-      select worker_id, attendance_date, status from attendance
-      where date_trunc('month', attendance_date) = date_trunc('month', make_date(${data.year}, ${data.month}, 1))
-    `;
-    return rows.map((r) => ({ workerId: r.worker_id, attendanceDate: r.attendance_date, status: r.status }));
+    try {
+      const sql = await getSql();
+      const rows = await sql<{ worker_id: number; attendance_date: string; status: AttendanceStatus }>`
+        select worker_id, attendance_date, status from attendance
+        where date_trunc('month', attendance_date) = date_trunc('month', make_date(${data.year}, ${data.month}, 1))
+      `;
+      return rows.map((r) => ({ workerId: r.worker_id, attendanceDate: r.attendance_date, status: r.status }));
+    } catch (error) {
+      console.error("[attendance] attendance store unavailable; showing blank register", error);
+      return [];
+    }
   });
 
 export const setAttendance = createServerFn({ method: "POST" })
