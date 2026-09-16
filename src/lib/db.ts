@@ -110,8 +110,13 @@ async function createPgliteSql(): Promise<Sql> {
   // One in-memory instance per process, shared across HMR module instances, so
   // data survives source edits (it resets on dev-server restart).
   globalRef.__pgliteInstance__ ??= (async () => {
-    const { PGlite } = await import("@electric-sql/pglite");
+    const { MemoryFS, PGlite } = await import("@electric-sql/pglite");
     const pg = new PGlite({
+      // Vercel functions do not provide a durable filesystem and the default
+      // NodeFS path can try to load a bundled pglite.data asset. MemoryFS keeps
+      // the preview fallback self-contained and lets higher-level handlers use
+      // their existing safe fallback when the function instance is cold.
+      fs: new MemoryFS(),
       parsers: {
         [OID_INT8]: Number,
         [OID_DATE]: identity,
