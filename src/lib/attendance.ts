@@ -171,6 +171,32 @@ export const setAttendance = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const setAttendanceByName = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      workerName: z.string().trim().min(2).max(100),
+      date: dateSchema,
+      status: z.enum(["Present", "Absent", "Off", "Leave"]),
+    }),
+  )
+  .handler(async ({ data }): Promise<{ ok: true; workerId: number; workerName: string }> => {
+    await seedWorkersIfEmpty();
+    const sql = await getSql();
+    const [worker] = await sql<{ id: number; name: string }>`
+      select id, name from workers
+      where active = true and lower(name) = lower(${data.workerName})
+      limit 1
+    `;
+    if (!worker) throw new Error(`Worker not found: ${data.workerName}`);
+    await sql`
+      insert into attendance (worker_id, attendance_date, status)
+      values (${worker.id}, ${data.date}, ${data.status})
+      on conflict (worker_id, attendance_date)
+      do update set status = excluded.status, updated_at = now()
+    `;
+    return { ok: true, workerId: worker.id, workerName: worker.name };
+  });
+
 export const saveWorkerPhoto = createServerFn({ method: "POST" })
   .validator(
     z.object({

@@ -42,7 +42,7 @@ function Manpower() {
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    const loadAttendance = async () => {
       try {
         const [w, a] = await Promise.all([
           listWorkers(),
@@ -59,9 +59,13 @@ function Manpower() {
       } catch (err) {
         console.error("[manpower] load failed:", err);
       }
-    })();
+    };
+    void loadAttendance();
+    const onAttendanceUpdated = () => void loadAttendance();
+    window.addEventListener("gelaran:attendance-updated", onAttendanceUpdated);
     return () => {
       cancelled = true;
+      window.removeEventListener("gelaran:attendance-updated", onAttendanceUpdated);
     };
   }, [today.year, today.month]);
 
