@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { Bot, Check, Send, Sparkles, X } from "lucide-react";
-import { setAttendanceByName, todayInKualaLumpur, type AttendanceStatus } from "@/lib/attendance";
+import {
+  getAttendanceSummary,
+  setAttendanceByName,
+  setAttendanceForTeam,
+  todayInKualaLumpur,
+  type AttendanceStatus,
+} from "@/lib/attendance";
 import { useAppStore } from "@/lib/store";
 import { pct, cn } from "@/lib/utils";
 
@@ -31,17 +37,42 @@ function parsePercent(value: string): number | null {
   return numeric / 100;
 }
 
+function resolveDate(value?: string): string {
+  const today = todayInKualaLumpur();
+  if (!value || /today/i.test(value)) return today.iso;
+  const base = new Date(Date.UTC(today.year, today.month - 1, today.day));
+  const normalized = value.toLowerCase();
+  if (normalized.includes("yesterday")) base.setUTCDate(base.getUTCDate() - 1);
+  else if (normalized.includes("tomorrow")) base.setUTCDate(base.getUTCDate() + 1);
+  else if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  else return today.iso;
+  return base.toISOString().slice(0, 10);
+}
+
 function parseAttendance(text: string): { workerName: string; status: AttendanceStatus; date: string } | null {
   const match = text.match(
-    /^(?:mark|set|update)\s+(?:worker\s+)?(?:"([^"]+)"|'([^']+)'|(.+?))\s+(?:as\s+)?(present|absent|leave|off)(?:\s+(?:for\s+)?(?:today|on\s+(\d{4}-\d{2}-\d{2})))?$/i,
+    /^(?:mark|set|update)\s+(?:worker\s+)?(?:"([^"]+)"|'([^']+)'|(.+?))\s+(?:as\s+)?(present|absent|leave|off)(?:\s+(?:for\s+|on\s+)?(today|yesterday|tomorrow|\d{4}-\d{2}-\d{2}))?$/i,
   );
   if (!match) return null;
   const workerName = (match[1] ?? match[2] ?? match[3] ?? "").trim();
   const rawStatus = match[4].toLowerCase();
   const status = rawStatus[0].toUpperCase() + rawStatus.slice(1) as AttendanceStatus;
-  const date = match[5] ?? todayInKualaLumpur().iso;
-  if (!workerName || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+  const date = resolveDate(match[5]);
+  if (!workerName) return null;
   return { workerName, status, date };
+}
+
+function parseTeamAttendance(text: string): { team: string; status: AttendanceStatus; date: string } | null {
+  const match = text.match(
+    /^(?:mark|set|update)\s+(?:everyone|all workers|the whole team)\s+(?:in\s+)?(team\s*[\w-]+)\s+(?:as\s+)?(present|absent|leave|off)(?:\s+(?:for\s+|on\s+)?(today|yesterday|tomorrow|\d{4}-\d{2}-\d{2}))?$/i,
+  );
+  if (!match) return null;
+  const rawStatus = match[2].toLowerCase();
+  return {
+    team: match[1].replace(/\s+/g, " ").trim(),
+    status: (rawStatus[0].toUpperCase() + rawStatus.slice(1)) as AttendanceStatus,
+    date: resolveDate(match[3]),
+  };
 }
 
 function refreshAttendanceTable() {
@@ -57,9 +88,10 @@ export async function applyCommand(text: string): Promise<string> {
   if (/^(help|commands|what can you|how do i)/i.test(lower)) {
     return [
       "**I can update the dashboard for you.** Use a direct command and I will confirm exactly what changed.",
-      "**Attendance:** `mark SOLIHIN present today`, `set BILAL absent on 2026-09-17`, or `mark ASGAR leave`",
+      "**Attendance:** `mark SOLIHIN present yesterday`, `set BILAL absent tomorrow`, or `mark everyone in team 4 present today`",
+      "**Attendance questions:** `who is absent today`, `how many workers are present`, or `roll call today`",
       "**Manpower:** `set on site to 30`",
-      "**Progress:** `set cold water progress to 55%` or `increase sanitary by 3%`",
+      "**Progress:** `set cold water progress to 55%`, `cold water is at 55%`, or `we're 60% complete on sanitary`",
       "**Conditions:** `set weather to Fair` or `set today focus to transfer pump at L13`",
       "**Read-only check:** `status`",
       "Attendance, BOQ, Photos, and other dashboard changes are managed here—not through page editing.",
@@ -73,8 +105,26 @@ export async function applyCommand(text: string): Promise<string> {
       `· Overall ${pct(s.overall)} · Cold water ${pct(s.coldWater)} · Sanitary ${pct(s.sanitary)} · Irrigation ${pct(s.irrigation)}`,
       `· On site: ${s.men} · Weather: ${s.weather} · Shift: ${s.shift}`,
       `· Today: ${s.today}`,
-      "· Attendance updates: available by worker name",
+      "· Attendance updates: available by worker name or team",
     ].join("\n");
+  }
+
+  if (/^(who is|who's|how many).*(present|absent|leave|off|attendance)/i.test(lower) || /^(attendance|roll call|headcount)\s*(today|yesterday|tomorrow)?$/i.test(lower)) {
+    const summary = await getAttendanceSummary({ data: { date: resolveDate(lower.match(/today|yesterday|tomorrow|\d{4}-\d{2}-\d{2}/i)?.[0]) } });
+    const requested = /absent/i.test(lower) ? "absent" : /leave/i.test(lower) ? "leave" : /off/i.test(lower) ? "off" : "present";
+    const names = summary[requested as "present" | "absent" | "leave" | "off"];
+    return `**Attendance for ${summary.date}**\n· ${requested[0].toUpperCase() + requested.slice(1)}: **${names.length}**${names.length ? ` — ${names.join(", ")}` : " — none recorded"}\n· Present ${summary.present.length} · Absent ${summary.absent.length} · Leave ${summary.leave.length} · Off ${summary.off.length} · Blank ${summary.blank.length}`;
+  }
+
+  const teamAttendance = parseTeamAttendance(text.trim());
+  if (teamAttendance) {
+    try {
+      const result = await setAttendanceForTeam({ data: teamAttendance });
+      refreshAttendanceTable();
+      return `Done — marked **${result.count} workers** in **${result.team}** ${attendanceLabels[teamAttendance.status]} on ${teamAttendance.date}. The table has been refreshed.`;
+    } catch (error) {
+      return `I could not update that team. ${error instanceof Error ? error.message : "Please check the team name."}`;
+    }
   }
 
   const attendance = parseAttendance(text.trim());
@@ -103,7 +153,7 @@ export async function applyCommand(text: string): Promise<string> {
   }
 
   const progressMatch = lower.match(
-    /(?:set|update|change)?\s*(overall|cold\s*water|sanitary|irrigation)\s*(?:progress)?\s*(?:to|=|:)\s*(\d+(?:\.\d+)?)\s*%?/i,
+    /(?:set|update|change)?\s*(overall|cold\s*water|sanitary|irrigation)\s*(?:progress|complete|completion)?\s*(?:to|at|=|:)\s*(\d+(?:\.\d+)?)\s*%?/i,
   );
   if (progressMatch) {
     const rawField = progressMatch[1].replace(/\s+/g, "").toLowerCase() as ProgressField;
@@ -112,6 +162,15 @@ export async function applyCommand(text: string): Promise<string> {
     if (!field || value === null) return "Progress must be a percentage from 0% to 100%.";
     store.updateSite({ [field]: value } as Partial<typeof store.report.site>);
     return `Done — updated ${formatProgress(field, value)}`;
+  }
+
+  const naturalProgressMatch = lower.match(/(?:we(?:'re| are)|it(?:'s| is)|currently)\s+(\d+(?:\.\d+)?)\s*%\s*(?:complete|completed|done)\s*(?:on|for|with)\s+(overall|cold\s*water|sanitary|irrigation)/i);
+  if (naturalProgressMatch) {
+    const field = naturalProgressMatch[2].replace(/\s+/g, "").toLowerCase() as ProgressField;
+    const value = parsePercent(naturalProgressMatch[1]);
+    if (!(field in progressLabels) || value === null) return "Please provide a progress value from 0% to 100%.";
+    store.updateSite({ [field]: value } as Partial<typeof store.report.site>);
+    return `Got it — ${formatProgress(field, value)}`;
   }
 
   const adjustmentMatch = lower.match(
@@ -154,7 +213,7 @@ export function AiAssistant() {
   const [msgs, setMsgs] = useState<Msg[]>([
     {
       role: "assistant",
-      text: "Hi — I can update progress, manpower, conditions, and attendance. Try **mark SOLIHIN present today** or type **help**.",
+      text: "Hi — I understand natural requests for progress, manpower, conditions, and attendance. Try **who is absent today**, **mark everyone in team 4 present**, or type **help**.",
     },
   ]);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -201,7 +260,7 @@ export function AiAssistant() {
             <div ref={bottomRef} />
           </div>
           <div className="flex flex-wrap gap-1.5 border-t border-border p-2">
-            {["help", "status", "mark SOLIHIN present today"].map((suggestion) => <button key={suggestion} type="button" disabled={busy} onClick={() => void send(suggestion)} className="rounded-full border border-border px-2 py-1 text-[11px] text-muted hover:border-accent hover:text-fg">{suggestion}</button>)}
+            {["help", "status", "who is absent today", "mark SOLIHIN present today"].map((suggestion) => <button key={suggestion} type="button" disabled={busy} onClick={() => void send(suggestion)} className="rounded-full border border-border px-2 py-1 text-[11px] text-muted hover:border-accent hover:text-fg">{suggestion}</button>)}
           </div>
           <div className="flex gap-2 border-t border-border p-2">
             <input value={input} disabled={busy} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => event.key === "Enter" && void send()} placeholder="Ask AI what to update…" className="min-w-0 flex-1 rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm outline-none focus:border-accent" aria-label="AI assistant command" />

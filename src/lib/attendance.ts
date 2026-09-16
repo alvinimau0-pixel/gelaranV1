@@ -197,6 +197,53 @@ export const setAttendanceByName = createServerFn({ method: "POST" })
     return { ok: true, workerId: worker.id, workerName: worker.name };
   });
 
+export const setAttendanceForTeam = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      team: z.string().trim().min(2).max(40),
+      date: dateSchema,
+      status: z.enum(["Present", "Absent", "Off", "Leave"]),
+    }),
+  )
+  .handler(async ({ data }): Promise<{ ok: true; count: number; team: string }> => {
+    await seedWorkersIfEmpty();
+    const sql = await getSql();
+    const workers = await sql<{ id: number }>`
+      select id from workers where active = true and lower(team) = lower(${data.team})
+    `;
+    if (!workers.length) throw new Error(`No active workers found in ${data.team}`);
+    for (const worker of workers) {
+      await sql`
+        insert into attendance (worker_id, attendance_date, status)
+        values (${worker.id}, ${data.date}, ${data.status})
+        on conflict (worker_id, attendance_date)
+        do update set status = excluded.status, updated_at = now()
+      `;
+    }
+    return { ok: true, count: workers.length, team: data.team };
+  });
+
+export const getAttendanceSummary = createServerFn({ method: "GET" })
+  .validator(z.object({ date: dateSchema }))
+  .handler(async ({ data }): Promise<{ date: string; present: string[]; absent: string[]; leave: string[]; off: string[]; blank: string[] }> => {
+    await seedWorkersIfEmpty();
+    const sql = await getSql();
+    const rows = await sql<{ name: string; status: AttendanceStatus | null }>`
+      select w.name, a.status
+      from workers w
+      left join attendance a on a.worker_id = w.id and a.attendance_date = ${data.date}
+      where w.active = true order by w.name asc
+    `;
+    const summary = { date: data.date, present: [], absent: [], leave: [], off: [], blank: [] } as {
+      date: string; present: string[]; absent: string[]; leave: string[]; off: string[]; blank: string[];
+    };
+    for (const row of rows) {
+      const bucket = row.status === "Present" ? "present" : row.status === "Absent" ? "absent" : row.status === "Leave" ? "leave" : row.status === "Off" ? "off" : "blank";
+      summary[bucket].push(row.name);
+    }
+    return summary;
+  });
+
 export const saveWorkerPhoto = createServerFn({ method: "POST" })
   .validator(
     z.object({
