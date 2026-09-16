@@ -1,28 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Camera, Calendar, Trash2, Upload, Image as ImageIcon, Loader2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Calendar, Image as ImageIcon } from "lucide-react";
 import { Badge, Card } from "@/components/ui";
-import { useAppStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
-import { listSitePhotos, createSitePhoto, deleteSitePhoto, type SitePhoto } from "@/lib/photos";
-import { compressImageToBase64 } from "@/lib/image-compress";
+import { listSitePhotos, type SitePhoto } from "@/lib/photos";
 
 export const Route = createFileRoute("/photos")({ component: PhotosPage });
 
 function PhotosPage() {
-  const editMode = useAppStore((s) => s.editMode);
-  const fileRef = useRef<HTMLInputElement>(null);
-
   const [photos, setPhotos] = useState<SitePhoto[]>([]);
   const [loaded, setLoaded] = useState(false);
-  const [title, setTitle] = useState("");
-  const [note, setNote] = useState("");
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [tower, setTower] = useState<SitePhoto["tower"]>("Both");
-  const [file, setFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
   const [featuredIdx, setFeaturedIdx] = useState(0);
 
   useEffect(() => {
@@ -62,62 +49,6 @@ function PhotosPage() {
   }, [photos]);
 
   const featured = photos[featuredIdx] ?? null;
-
-  function onFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
-    setUploadError(null);
-    if (!f || !f.type.startsWith("image/")) return;
-    setFile(f);
-    const reader = new FileReader();
-    reader.onload = () => setPreview(String(reader.result));
-    reader.readAsDataURL(f);
-  }
-
-  async function handleUpload() {
-    if (!file) return;
-    setUploading(true);
-    setUploadError(null);
-    try {
-      const { base64Data, contentType } = await compressImageToBase64(file);
-      const created = await createSitePhoto({
-        data: {
-          title: title.trim() || `Site photo · ${date}`,
-          note: note.trim(),
-          date,
-          tower,
-          contentType,
-          base64Data,
-        },
-      });
-      setPhotos((p) =>
-        [created, ...p].sort(
-          (a, b) => b.photoDate.localeCompare(a.photoDate) || b.uploadedAt.localeCompare(a.uploadedAt),
-        ),
-      );
-      setTitle("");
-      setNote("");
-      setFile(null);
-      setPreview(null);
-      setDate(new Date().toISOString().slice(0, 10));
-      if (fileRef.current) fileRef.current.value = "";
-    } catch (err) {
-      console.error("[photos] upload failed:", err);
-      setUploadError(err instanceof Error ? err.message : "Upload failed. Check your connection and try again.");
-    } finally {
-      setUploading(false);
-    }
-  }
-
-  async function handleDelete(id: number) {
-    const prev = photos;
-    setPhotos((p) => p.filter((x) => x.id !== id));
-    try {
-      await deleteSitePhoto({ data: { id } });
-    } catch (err) {
-      console.error("[photos] delete failed:", err);
-      setPhotos(prev); // never pretend a failed delete succeeded
-    }
-  }
 
   return (
     <div className="space-y-6">
@@ -174,87 +105,6 @@ function PhotosPage() {
         </Card>
       )}
 
-      <Card>
-        <div className="mb-4 flex items-center gap-2">
-          <Upload className="size-4 text-accent" />
-          <h2 className="font-display text-lg font-semibold">Upload photo</h2>
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-3">
-            <label className="block text-xs font-medium uppercase tracking-wide text-muted">
-              Image
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                onChange={onFile}
-                className="mt-1.5 block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-ink file:px-3 file:py-2 file:text-sm file:font-medium file:text-accent-fg"
-              />
-            </label>
-            <label className="block text-xs font-medium uppercase tracking-wide text-muted">
-              Title
-              <input
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g. Transfer pump install L13"
-                className="mt-1.5 w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-sm outline-none focus:border-accent"
-              />
-            </label>
-            <label className="block text-xs font-medium uppercase tracking-wide text-muted">
-              Note (optional)
-              <input
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder="Short description"
-                className="mt-1.5 w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-sm outline-none focus:border-accent"
-              />
-            </label>
-            <div className="grid grid-cols-2 gap-3">
-              <label className="block text-xs font-medium uppercase tracking-wide text-muted">
-                Date
-                <input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="mt-1.5 w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-sm outline-none focus:border-accent"
-                />
-              </label>
-              <label className="block text-xs font-medium uppercase tracking-wide text-muted">
-                Tower
-                <select
-                  value={tower ?? "Both"}
-                  onChange={(e) => setTower(e.target.value as SitePhoto["tower"])}
-                  className="mt-1.5 w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-sm outline-none focus:border-accent"
-                >
-                  <option value="A">Tower A</option>
-                  <option value="B">Tower B</option>
-                  <option value="Both">Both</option>
-                  <option value="Other">Other</option>
-                </select>
-              </label>
-            </div>
-            {uploadError ? <p className="text-xs text-bad">{uploadError}</p> : null}
-            <button
-              type="button"
-              disabled={!preview || uploading}
-              onClick={handleUpload}
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-ink px-4 text-sm font-medium text-accent-fg disabled:opacity-40"
-            >
-              {uploading ? <Loader2 className="size-4 animate-spin" /> : <Camera className="size-4" />}
-              {uploading ? "Uploading…" : "Save photo"}
-            </button>
-          </div>
-          <div className="flex min-h-48 items-center justify-center overflow-hidden rounded-lg border border-dashed border-border bg-surface-2">
-            {preview ? (
-              <img src={preview} alt="Preview" className="max-h-64 w-full object-contain" />
-            ) : (
-              <p className="text-sm text-muted">Preview appears here</p>
-            )}
-          </div>
-        </div>
-      </Card>
-
       {byDate.map(([d, list]) => (
         <div key={d} className="space-y-3">
           <div className="flex items-center gap-2">
@@ -284,18 +134,6 @@ function PhotosPage() {
                     </p>
                   </div>
                 </button>
-                {editMode ? (
-                  <div className="flex border-t border-border">
-                    <button
-                      type="button"
-                      className="flex flex-1 items-center justify-center gap-1.5 py-2.5 text-xs font-medium text-bad hover:bg-bad-bg"
-                      onClick={() => handleDelete(p.id)}
-                    >
-                      <Trash2 className="size-3.5" />
-                      Remove
-                    </button>
-                  </div>
-                ) : null}
               </Card>
             ))}
           </div>

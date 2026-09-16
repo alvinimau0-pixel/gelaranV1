@@ -7,32 +7,8 @@ export const Route = createFileRoute("/boq")({ component: Boq });
 
 function Boq() {
   const report = useAppStore((s) => s.report);
-  const editMode = useAppStore((s) => s.editMode);
-  const setReportField = useAppStore((s) => s.setReportField);
   const aShare = report.aipoonClaimed / Math.max(1, report.aipoonTotal);
   const rShare = report.ariyanClaimed / Math.max(1, report.ariyanTotal);
-
-  function updateAipoonDone(index: number, donePct: number) {
-    const next = report.aipoon.map((row, i) => {
-      if (i !== index) return row;
-      const done = Math.max(0, Math.min(1, donePct / 100));
-      return { ...row, done, amount: row.qty * row.rate * done };
-    });
-    const claimed = next.reduce((sum, r) => sum + r.amount, 0);
-    setReportField("aipoon", next);
-    setReportField("aipoonClaimed", claimed);
-  }
-
-  function updateAriyanDone(index: number, donePct: number) {
-    const next = report.ariyan.map((row, i) => {
-      if (i !== index) return row;
-      const done = Math.max(0, Math.min(1, donePct / 100));
-      return { ...row, done, amount: row.qty * row.rate * done };
-    });
-    const claimed = next.reduce((sum, r) => sum + r.amount, 0);
-    setReportField("ariyan", next);
-    setReportField("ariyanClaimed", claimed);
-  }
 
   return (
     <div className="space-y-6">
@@ -66,27 +42,13 @@ function Boq() {
               </tr>
             </thead>
             <tbody>
-              {report.aipoon.map((row, i) => (
-                <tr key={i}>
+              {report.aipoon.map((row) => (
+                <tr key={`${row.desc}-${row.unit}`}>
                   <Td className="font-medium">{row.desc}</Td>
                   <Td>{row.unit}</Td>
                   <Td numeric>{row.qty}</Td>
                   <Td numeric>{rm(row.rate)}</Td>
-                  <Td numeric>
-                    {editMode ? (
-                      <input
-                        type="number"
-                        min={0}
-                        max={100}
-                        step={1}
-                        value={Math.round(row.done * 100)}
-                        onChange={(e) => updateAipoonDone(i, Number(e.target.value))}
-                        className="w-16 rounded border border-border bg-surface-2 px-1 py-0.5 text-right text-xs"
-                      />
-                    ) : (
-                      pct(row.done)
-                    )}
-                  </Td>
+                  <Td numeric>{pct(row.done)}</Td>
                   <Td numeric>{rm(row.amount)}</Td>
                 </tr>
               ))}
@@ -117,28 +79,14 @@ function Boq() {
               </tr>
             </thead>
             <tbody>
-              {report.ariyan.map((row, i) => (
-                <tr key={i}>
+              {report.ariyan.map((row) => (
+                <tr key={`${row.section}-${row.desc}-${row.unit}`}>
                   <Td className="max-w-40 truncate text-muted">{row.section}</Td>
                   <Td className="font-medium">{row.desc}</Td>
                   <Td>{row.unit}</Td>
                   <Td numeric>{row.qty}</Td>
                   <Td numeric>{rm(row.rate)}</Td>
-                  <Td numeric>
-                    {editMode ? (
-                      <input
-                        type="number"
-                        min={0}
-                        max={100}
-                        step={1}
-                        value={Math.round(row.done * 100)}
-                        onChange={(e) => updateAriyanDone(i, Number(e.target.value))}
-                        className="w-16 rounded border border-border bg-surface-2 px-1 py-0.5 text-right text-xs"
-                      />
-                    ) : (
-                      pct(row.done)
-                    )}
-                  </Td>
+                  <Td numeric>{pct(row.done)}</Td>
                   <Td numeric>{rm(row.amount)}</Td>
                 </tr>
               ))}

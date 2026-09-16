@@ -16,8 +16,6 @@ export const Route = createFileRoute("/")({ component: Home });
 
 function Home() {
   const report = useAppStore((s) => s.report);
-  const editMode = useAppStore((s) => s.editMode);
-  const updateSite = useAppStore((s) => s.updateSite);
   const s = report.site;
   const floors = report.floors.filter((f) => f.level !== "OVERALL");
   const chart = floors.map((f) => ({
@@ -35,9 +33,6 @@ function Home() {
             Daily snapshot · {s.today} · Weather {s.weather} · {s.shift} shift
           </p>
         </div>
-        {editMode ? (
-          <Badge tone="accent">Edit mode on — change values below or use AI assistant</Badge>
-        ) : null}
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -64,63 +59,6 @@ function Home() {
           hint={`Remaining ${pct(1 - s.irrigation)}`}
         />
       </div>
-
-      {editMode ? (
-        <Card>
-          <h2 className="mb-3 font-display text-lg font-semibold">Quick edit · site snapshot</h2>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {(
-              [
-                ["overall", "Overall %"],
-                ["coldWater", "Cold water %"],
-                ["sanitary", "Sanitary %"],
-                ["irrigation", "Irrigation %"],
-              ] as const
-            ).map(([key, label]) => (
-              <label key={key} className="block text-xs font-medium uppercase tracking-wide text-muted">
-                {label}
-                <input
-                  type="number"
-                  min={0}
-                  max={100}
-                  step={0.1}
-                  value={Math.round(s[key] * 1000) / 10}
-                  onChange={(e) =>
-                    updateSite({ [key]: Number(e.target.value) / 100 } as any)
-                  }
-                  className="mt-1.5 w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-sm outline-none focus:border-accent"
-                />
-              </label>
-            ))}
-            <label className="block text-xs font-medium uppercase tracking-wide text-muted">
-              On site (men)
-              <input
-                type="number"
-                min={0}
-                value={s.men}
-                onChange={(e) => updateSite({ men: Number(e.target.value) })}
-                className="mt-1.5 w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-sm outline-none focus:border-accent"
-              />
-            </label>
-            <label className="block text-xs font-medium uppercase tracking-wide text-muted">
-              Weather
-              <input
-                value={s.weather}
-                onChange={(e) => updateSite({ weather: e.target.value })}
-                className="mt-1.5 w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-sm outline-none focus:border-accent"
-              />
-            </label>
-            <label className="block text-xs font-medium uppercase tracking-wide text-muted sm:col-span-2">
-              Today focus
-              <input
-                value={s.today}
-                onChange={(e) => updateSite({ today: e.target.value })}
-                className="mt-1.5 w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-sm outline-none focus:border-accent"
-              />
-            </label>
-          </div>
-        </Card>
-      ) : null}
 
       <div className="grid gap-3 sm:grid-cols-3">
         <Stat label="On site" value={`${s.men}`} hint="People today" delay={160} />

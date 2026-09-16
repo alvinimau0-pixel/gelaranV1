@@ -6,8 +6,6 @@ type ReportData = typeof initialReport;
 
 type AppState = {
   report: ReportData;
-  editMode: boolean;
-  setEditMode: (v: boolean) => void;
   updateReport: (partial: Partial<ReportData>) => void;
   updateSite: (partial: Partial<ReportData["site"]>) => void;
   setReportField: <K extends keyof ReportData>(key: K, value: ReportData[K]) => void;
@@ -21,8 +19,6 @@ export const useAppStore = create<AppState>()(
   persist(
     (set) => ({
       report: structuredClone(initialReport),
-      editMode: false,
-      setEditMode: (v) => set({ editMode: v }),
       updateReport: (partial) => set((s) => ({ report: { ...s.report, ...partial } })),
       updateSite: (partial) =>
         set((s) => ({ report: { ...s.report, site: { ...s.report.site, ...partial } } })),
@@ -31,7 +27,7 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: "gelaran-v1-app",
-      partialize: (s) => ({ report: s.report, editMode: s.editMode }),
+      partialize: (s) => ({ report: s.report }),
     },
   ),
 );
