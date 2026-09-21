@@ -1,215 +1,370 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Badge, Card, Meter, Stat, TableWrap, Td, Th } from "@/components/ui";
-import { leaderTone, pct } from "@/lib/utils";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  AlertTriangle,
+  Camera,
+  CheckCircle2,
+  ClipboardList,
+  HardHat,
+  ImagePlus,
+  Package,
+  TrendingUp,
+  Users,
+} from "lucide-react";
+import { Badge, Card, Meter } from "@/components/ui";
+import { MepMatrix } from "@/components/mep-matrix";
+import { pct, cn } from "@/lib/utils";
 import { useAppStore } from "@/lib/store";
 import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+  listWorkers,
+  listAttendanceForMonth,
+  todayInKualaLumpur,
+  type Worker,
+  type AttendanceStatus,
+} from "@/lib/attendance";
+import { listSitePhotos, createSitePhoto, type SitePhoto } from "@/lib/photos";
+import { compressImageToBase64 } from "@/lib/image-compress";
 
 export const Route = createFileRoute("/")({ component: Home });
+
+type Mark = "P" | "A" | "O" | "L" | "";
+const STATUS_TO_MARK: Record<AttendanceStatus, Mark> = {
+  Present: "P",
+  Absent: "A",
+  Off: "O",
+  Leave: "L",
+};
 
 function Home() {
   const report = useAppStore((s) => s.report);
   const s = report.site;
-  const floors = report.floors.filter((f) => f.level !== "OVERALL");
-  const chart = floors.map((f) => ({
-    level: f.level,
-    A: Math.round(f.a * 1000) / 10,
-    B: Math.round(f.b * 1000) / 10,
-  }));
+  const today = useMemo(() => todayInKualaLumpur(), []);
+
+  // ── Workers status ────────────────────────────────────────────────────
+  const [workers, setWorkers] = useState<Worker[]>([]);
+  const [marks, setMarks] = useState<Record<number, Mark>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const [w, a] = await Promise.all([
+          listWorkers(),
+          listAttendanceForMonth({ data: { year: today.year, month: today.month } }),
+        ]);
+        if (cancelled) return;
+        setWorkers(w);
+        const next: Record<number, Mark> = {};
+        for (const row of a) {
+          const day = Number(row.attendanceDate.slice(8, 10));
+          if (day === today.day) next[row.workerId] = STATUS_TO_MARK[row.status];
+        }
+        setMarks(next);
+      } catch (err) {
+        console.error("[dashboard] workers load failed", err);
+      }
+    };
+    void load();
+    const onUpd = () => void load();
+    window.addEventListener("gelaran:attendance-updated", onUpd);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("gelaran:attendance-updated", onUpd);
+    };
+  }, [today.year, today.month, today.day]);
+
+  const present = workers.filter((w) => marks[w.id] === "P").length;
+  const absent = workers.filter((w) => marks[w.id] === "A").length;
+  const leave = workers.filter((w) => marks[w.id] === "L").length;
+  const off = workers.filter((w) => marks[w.id] === "O").length;
+  const blank = workers.length - present - absent - leave - off;
+
+  // ── Photos carousel (3s) + upload ─────────────────────────────────────
+  const [photos, setPhotos] = useState<SitePhoto[]>([]);
+  const [photoIdx, setPhotoIdx] = useState(0);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    listSitePhotos()
+      .then((rows) => {
+        if (!cancelled) setPhotos(rows);
+      })
+      .catch((err) => console.error("[dashboard] photos load failed", err));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (photos.length < 2) return;
+    const t = setInterval(() => setPhotoIdx((i) => (i + 1) % photos.length), 3000);
+    return () => clearInterval(t);
+  }, [photos.length]);
+
+  async function onUpload(file: File | null) {
+    if (!file || !file.type.startsWith("image/")) return;
+    setUploading(true);
+    try {
+      const { base64Data, contentType } = await compressImageToBase64(file);
+      const created = await createSitePhoto({
+        data: {
+          title: file.name.replace(/\.[^.]+$/, "") || "Site photo",
+          note: "",
+          date: today.iso,
+          tower: null,
+          contentType,
+          base64Data,
+        },
+      });
+      setPhotos((prev) => [created, ...prev]);
+      setPhotoIdx(0);
+    } catch (err) {
+      console.error("[dashboard] upload failed", err);
+      alert("Upload failed. Please try again.");
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
+  const featured = photos[photoIdx] ?? null;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <div className="space-y-5">
+      {/* Header — compact on mobile */}
+      <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h1 className="font-display text-3xl font-semibold tracking-tight">Site dashboard</h1>
-          <p className="mt-1 text-sm text-muted">
-            Daily snapshot · {s.today} · Weather {s.weather} · {s.shift} shift
+          <h1 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">Site dashboard</h1>
+          <p className="mt-0.5 text-xs text-muted sm:text-sm">
+            {s.today} · {s.weather} · {s.shift} · {pct(s.overall)} overall
           </p>
         </div>
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat label="Overall" value={pct(s.overall)} bar={s.overall} hint="Site-wide complete" />
-        <Stat
-          label="Cold water"
-          value={pct(s.coldWater)}
-          bar={s.coldWater}
-          delay={40}
-          hint={`Remaining ${pct(1 - s.coldWater)}`}
-        />
-        <Stat
-          label="Sanitary"
-          value={pct(s.sanitary)}
-          bar={s.sanitary}
-          delay={80}
-          hint={`Remaining ${pct(1 - s.sanitary)}`}
-        />
-        <Stat
-          label="Irrigation"
-          value={pct(s.irrigation)}
-          bar={s.irrigation}
-          delay={120}
-          hint={`Remaining ${pct(1 - s.irrigation)}`}
-        />
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Stat label="On site" value={`${s.men}`} hint="People today" delay={160} />
-        <Stat label="Today" value={s.today} hint={s.weather + " · " + s.shift} delay={200} />
-        <Stat label="Drawings" value="7" hint="MEP shop sheets" delay={240} />
-      </div>
-
-      <Card className="anim-enter">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="font-display text-lg font-semibold">Tower A vs Tower B</h2>
-          <Badge tone="ok">Live from store</Badge>
+        <div className="flex flex-wrap gap-1.5">
+          <Badge tone="accent">{s.men} on site</Badge>
+          <Badge tone="ok">{present} present</Badge>
         </div>
-        <TableWrap>
-          <thead>
-            <tr>
-              <Th>Package</Th>
-              <Th className="text-right">Tower A</Th>
-              <Th className="text-right">Tower B</Th>
-              <Th className="text-right">Gap</Th>
-              <Th>Leader</Th>
-            </tr>
-          </thead>
-          <tbody>
-            {report.comparePackages.map((row) => (
-              <tr key={row.package}>
-                <Td className="font-medium">{row.package}</Td>
-                <Td numeric>{pct(row.a)}</Td>
-                <Td numeric>{pct(row.b)}</Td>
-                <Td numeric>{pct(row.gap)}</Td>
-                <Td>
-                  <Badge tone={leaderTone(row.leader)}>{row.leader}</Badge>
-                </Td>
-              </tr>
-            ))}
-          </tbody>
-        </TableWrap>
-      </Card>
+      </div>
 
-      <Card>
-        <h2 className="mb-4 font-display text-lg font-semibold">Floor complete · A vs B</h2>
-        <div className="h-72 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chart} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
-              <CartesianGrid stroke="#e2e6ed" vertical={false} />
-              <XAxis dataKey="level" tick={{ fontSize: 11, fill: "#5c6775" }} />
-              <YAxis tick={{ fontSize: 11, fill: "#5c6775" }} unit="%" />
-              <Tooltip
-                contentStyle={{
-                  border: "1px solid #e2e6ed",
-                  borderRadius: 12,
-                  fontSize: 12,
-                }}
+      {/* 1. Photo carousel + upload */}
+      <Card className="overflow-hidden p-0">
+        <div className="relative aspect-[16/10] bg-ink sm:aspect-[21/9]">
+          {featured ? (
+            <>
+              <img
+                key={featured.id}
+                src={featured.photoUrl}
+                alt={featured.title}
+                className="h-full w-full object-cover transition-opacity duration-500"
               />
-              <Bar dataKey="A" fill="#1b2430" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="B" fill="#3d8bff" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent p-3 sm:p-4">
+                <p className="text-[10px] font-medium uppercase tracking-wide text-white/70 sm:text-xs">
+                  {featured.photoDate}
+                  {featured.tower ? ` · Tower ${featured.tower}` : ""}
+                </p>
+                <p className="mt-0.5 truncate font-display text-sm font-semibold text-white sm:text-base">
+                  {featured.title}
+                </p>
+              </div>
+              {photos.length > 1 ? (
+                <div className="absolute bottom-3 right-3 flex gap-1">
+                  {photos.slice(0, 8).map((_, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      aria-label={`Photo ${i + 1}`}
+                      onClick={() => setPhotoIdx(i)}
+                      className={cn(
+                        "size-1.5 rounded-full transition-colors sm:size-2",
+                        i === photoIdx ? "bg-white" : "bg-white/40",
+                      )}
+                    />
+                  ))}
+                </div>
+              ) : null}
+            </>
+          ) : (
+            <div className="flex h-full flex-col items-center justify-center gap-2 text-white/60">
+              <Camera className="size-8" />
+              <p className="text-sm">No photos yet</p>
+            </div>
+          )}
+          <div className="absolute right-2 top-2 flex gap-2">
+            <button
+              type="button"
+              disabled={uploading}
+              onClick={() => fileRef.current?.click()}
+              className="inline-flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1.5 text-xs font-medium text-white backdrop-blur hover:bg-black/70 disabled:opacity-50"
+            >
+              <ImagePlus className="size-3.5" />
+              {uploading ? "Uploading…" : "Upload"}
+            </button>
+            <Link
+              to="/photos"
+              className="inline-flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1.5 text-xs font-medium text-white backdrop-blur hover:bg-black/70"
+            >
+              All
+            </Link>
+          </div>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={(e) => void onUpload(e.target.files?.[0] ?? null)}
+          />
         </div>
       </Card>
 
+      {/* 2. Workers status */}
       <Card>
-        <h2 className="mb-4 font-display text-lg font-semibold">Work item gaps</h2>
-        <p className="mb-3 text-sm text-muted">
-          Open the{" "}
-          <Link to="/matrix" className="font-medium text-accent hover:underline">
-            MEP matrix
-          </Link>{" "}
-          or{" "}
-          <Link to="/photos" className="font-medium text-accent hover:underline">
-            Photos at home
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h2 className="flex items-center gap-2 font-display text-base font-semibold sm:text-lg">
+            <Users className="size-4 text-muted" />
+            Workers today
+          </h2>
+          <Link to="/manpower" className="text-xs font-medium text-accent hover:underline">
+            Full attendance →
           </Link>
-          .
-        </p>
-        <TableWrap>
-          <thead>
-            <tr>
-              <Th>Package</Th>
-              <Th>Item</Th>
-              <Th className="text-right">A</Th>
-              <Th className="text-right">B</Th>
-              <Th className="text-right">Gap</Th>
-              <Th>Leader</Th>
-            </tr>
-          </thead>
-          <tbody>
-            {report.itemGaps.map((row) => (
-              <tr key={`${row.package}-${row.item}`}>
-                <Td>{row.package}</Td>
-                <Td className="font-medium">{row.item}</Td>
-                <Td numeric>{pct(row.a)}</Td>
-                <Td numeric>{pct(row.b)}</Td>
-                <Td numeric>{pct(row.gap)}</Td>
-                <Td>
-                  <Badge tone={leaderTone(row.leader)}>{row.leader}</Badge>
-                </Td>
-              </tr>
-            ))}
-          </tbody>
-        </TableWrap>
+        </div>
+        <div className="mb-3 grid grid-cols-4 gap-2">
+          <div className="rounded-lg bg-ok-bg px-2 py-2 text-center">
+            <p className="font-display text-lg font-semibold text-ok tabular-nums">{present}</p>
+            <p className="text-[10px] font-medium uppercase text-ok/80">Present</p>
+          </div>
+          <div className="rounded-lg bg-bad-bg px-2 py-2 text-center">
+            <p className="font-display text-lg font-semibold text-bad tabular-nums">{absent}</p>
+            <p className="text-[10px] font-medium uppercase text-bad/80">Absent</p>
+          </div>
+          <div className="rounded-lg bg-accent/15 px-2 py-2 text-center">
+            <p className="font-display text-lg font-semibold text-accent tabular-nums">{leave}</p>
+            <p className="text-[10px] font-medium uppercase text-accent/80">Leave</p>
+          </div>
+          <div className="rounded-lg bg-surface-2 px-2 py-2 text-center">
+            <p className="font-display text-lg font-semibold text-muted tabular-nums">{off + blank}</p>
+            <p className="text-[10px] font-medium uppercase text-muted">Off / —</p>
+          </div>
+        </div>
+        <div className="max-h-48 space-y-1.5 overflow-y-auto">
+          {workers.slice(0, 12).map((w) => {
+            const m = marks[w.id] ?? "";
+            const tone =
+              m === "P"
+                ? "bg-ok-bg text-ok"
+                : m === "A"
+                  ? "bg-bad-bg text-bad"
+                  : m === "L"
+                    ? "bg-accent/15 text-accent"
+                    : "bg-surface-2 text-subtle";
+            return (
+              <div
+                key={w.id}
+                className="flex items-center gap-2 rounded-md border border-border px-2 py-1.5"
+              >
+                <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-2 text-[10px] font-semibold text-muted">
+                  {w.photoUrl ? (
+                    <img src={w.photoUrl} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    w.name.slice(0, 2)
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium leading-tight">{w.name}</p>
+                  <p className="truncate text-[11px] text-muted">{w.team ?? "—"}</p>
+                </div>
+                <span className={cn("rounded px-1.5 py-0.5 text-xs font-semibold", tone)}>
+                  {m || "·"}
+                </span>
+              </div>
+            );
+          })}
+          {workers.length === 0 ? (
+            <p className="py-4 text-center text-sm text-muted">Loading workers…</p>
+          ) : null}
+        </div>
       </Card>
 
-      <div className="grid gap-3 md:grid-cols-2">
-        <Card>
-          <h2 className="mb-2 font-display text-lg font-semibold">Material outstanding</h2>
-          <p className="text-sm text-muted">
-            {report.poSummary.toOrder} lines still to order · balance {report.orderTotals.total}
-          </p>
-          <div className="mt-4 space-y-3">
-            {[
-              ["Cold water", report.orderTotals.coldWater],
-              ["Sanitary", report.orderTotals.sanitary],
-              ["Irrigation", report.orderTotals.irrigation],
-            ].map(([label, qty]) => (
-              <div key={String(label)}>
-                <div className="mb-1 flex justify-between text-sm">
-                  <span>{label}</span>
-                  <span className="tabular-nums text-muted">{qty}</span>
-                </div>
-                <Meter value={Number(qty) / Math.max(1, report.orderTotals.total)} />
-              </div>
-            ))}
-          </div>
+      {/* 3. Compact matrix */}
+      <Card className="p-3 sm:p-5">
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h2 className="font-display text-base font-semibold sm:text-lg">MEP matrix</h2>
+          <Link to="/matrix" className="text-xs font-medium text-accent hover:underline">
+            Full screen →
+          </Link>
+        </div>
+        <div className="-mx-1 overflow-x-auto">
+          <MepMatrix />
+        </div>
+      </Card>
+
+      {/* 4. Notes / quick links */}
+      <Card>
+        <h2 className="mb-3 flex items-center gap-2 font-display text-base font-semibold sm:text-lg">
+          <ClipboardList className="size-4 text-muted" />
+          Notes & quick links
+        </h2>
+        <div className="grid gap-2 sm:grid-cols-2">
           <Link
             to="/material"
-            className="mt-4 inline-flex text-sm font-medium text-accent hover:underline"
+            className="flex items-center gap-3 rounded-lg border border-border bg-surface-2 px-3 py-3 transition hover:border-accent"
           >
-            Open material board
+            <Package className="size-5 shrink-0 text-accent" />
+            <div className="min-w-0">
+              <p className="text-sm font-medium">Material delivered</p>
+              <p className="text-xs text-muted">
+                {report.poSummary.toOrder} lines to order · bal {report.orderTotals.total}
+              </p>
+            </div>
           </Link>
-        </Card>
-        <Card>
-          <h2 className="mb-2 font-display text-lg font-semibold">Today on site</h2>
-          <p className="text-sm text-muted">Focus: {s.today}. Blockers: {s.blockers ?? "none recorded"}.</p>
-          <ul className="mt-4 space-y-2 text-sm">
-            {report.teams.slice(0, 6).map((t) => (
-              <li key={t.team} className="flex justify-between gap-3 border-b border-border py-2">
-                <span className="text-muted">{t.team}</span>
-                <span className="font-medium">
-                  {t.leader}
-                  {t.assistants.length ? ` · ${t.assistants.length} assist` : ""}
-                </span>
-              </li>
-            ))}
-          </ul>
+          <Link
+            to="/po-log"
+            className="flex items-center gap-3 rounded-lg border border-border bg-surface-2 px-3 py-3 transition hover:border-accent"
+          >
+            <AlertTriangle className="size-5 shrink-0 text-warn" />
+            <div className="min-w-0">
+              <p className="text-sm font-medium">Issues / PO log</p>
+              <p className="text-xs text-muted">Purchase orders & outstanding</p>
+            </div>
+          </Link>
           <Link
             to="/manpower"
-            className="mt-4 inline-flex text-sm font-medium text-accent hover:underline"
+            className="flex items-center gap-3 rounded-lg border border-border bg-surface-2 px-3 py-3 transition hover:border-accent"
           >
-            Open attendance
+            <HardHat className="size-5 shrink-0 text-ok" />
+            <div className="min-w-0">
+              <p className="text-sm font-medium">Workers</p>
+              <p className="text-xs text-muted">
+                {present} present · {absent} absent today
+              </p>
+            </div>
           </Link>
-        </Card>
-      </div>
+          <Link
+            to="/matrix"
+            className="flex items-center gap-3 rounded-lg border border-border bg-surface-2 px-3 py-3 transition hover:border-accent"
+          >
+            <TrendingUp className="size-5 shrink-0 text-accent" />
+            <div className="min-w-0">
+              <p className="text-sm font-medium">Progress</p>
+              <p className="text-xs text-muted">
+                Overall {pct(s.overall)} · CW {pct(s.coldWater)} · San {pct(s.sanitary)}
+              </p>
+            </div>
+          </Link>
+        </div>
+        {s.blockers ? (
+          <div className="mt-3 flex items-start gap-2 rounded-lg bg-warn-bg px-3 py-2 text-sm text-warn">
+            <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+            <span>Blocker: {s.blockers}</span>
+          </div>
+        ) : (
+          <div className="mt-3 flex items-center gap-2 text-xs text-muted">
+            <CheckCircle2 className="size-3.5 text-ok" />
+            No blockers recorded · Focus: {s.today}
+          </div>
+        )}
+      </Card>
     </div>
   );
 }
