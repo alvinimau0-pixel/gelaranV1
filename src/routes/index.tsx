@@ -11,7 +11,7 @@ import {
   TrendingUp,
   Users,
 } from "lucide-react";
-import { Badge, Card, Meter } from "@/components/ui";
+import { Badge, Card } from "@/components/ui";
 import { MepMatrix } from "@/components/mep-matrix";
 import { pct, cn } from "@/lib/utils";
 import { useAppStore } from "@/lib/store";
@@ -40,7 +40,6 @@ function Home() {
   const s = report.site;
   const today = useMemo(() => todayInKualaLumpur(), []);
 
-  // ── Workers status ────────────────────────────────────────────────────
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [marks, setMarks] = useState<Record<number, Mark>>({});
 
@@ -79,7 +78,6 @@ function Home() {
   const off = workers.filter((w) => marks[w.id] === "O").length;
   const blank = workers.length - present - absent - leave - off;
 
-  // ── Photos carousel (3s) + upload ─────────────────────────────────────
   const [photos, setPhotos] = useState<SitePhoto[]>([]);
   const [photoIdx, setPhotoIdx] = useState(0);
   const [uploading, setUploading] = useState(false);
@@ -133,7 +131,6 @@ function Home() {
 
   return (
     <div className="space-y-5">
-      {/* Header — compact on mobile */}
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <h1 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">Site dashboard</h1>
@@ -147,7 +144,6 @@ function Home() {
         </div>
       </div>
 
-      {/* 1. Photo carousel + upload */}
       <Card className="overflow-hidden p-0">
         <div className="relative aspect-[16/10] bg-ink sm:aspect-[21/9]">
           {featured ? (
@@ -188,6 +184,7 @@ function Home() {
             <div className="flex h-full flex-col items-center justify-center gap-2 text-white/60">
               <Camera className="size-8" />
               <p className="text-sm">No photos yet</p>
+              <p className="text-xs text-white/40">Upload from gallery or camera</p>
             </div>
           )}
           <div className="absolute right-2 top-2 flex gap-2">
@@ -207,18 +204,17 @@ function Home() {
               All
             </Link>
           </div>
+          {/* No capture= attribute → phone shows Gallery + Camera choice */}
           <input
             ref={fileRef}
             type="file"
             accept="image/*"
-            capture="environment"
             className="hidden"
             onChange={(e) => void onUpload(e.target.files?.[0] ?? null)}
           />
         </div>
       </Card>
 
-      {/* 2. Workers status */}
       <Card>
         <div className="mb-3 flex items-center justify-between gap-2">
           <h2 className="flex items-center gap-2 font-display text-base font-semibold sm:text-lg">
@@ -286,7 +282,6 @@ function Home() {
         </div>
       </Card>
 
-      {/* 3. Compact matrix */}
       <Card className="p-3 sm:p-5">
         <div className="mb-3 flex items-center justify-between gap-2">
           <h2 className="font-display text-base font-semibold sm:text-lg">MEP matrix</h2>
@@ -299,7 +294,6 @@ function Home() {
         </div>
       </Card>
 
-      {/* 4. Notes / quick links */}
       <Card>
         <h2 className="mb-3 flex items-center gap-2 font-display text-base font-semibold sm:text-lg">
           <ClipboardList className="size-4 text-muted" />
