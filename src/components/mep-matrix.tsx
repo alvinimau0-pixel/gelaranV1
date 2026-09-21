@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { X } from "lucide-react";
-import { report } from "@/lib/report-data";
+import { useAppStore } from "@/lib/store";
 import { ITEM_META, PACKAGES, cellTone, itemsForPackage, relatedMaterial } from "@/lib/mep";
 import { Badge, Card, Meter } from "@/components/ui";
 import { cn, pct } from "@/lib/utils";
@@ -9,6 +9,7 @@ import { cn, pct } from "@/lib/utils";
 type Sel = { tower: "A" | "B"; level: string; item: string };
 
 export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
+  const report = useAppStore((s) => s.report);
   const [pkg, setPkg] = useState<(typeof PACKAGES)[number]>("All");
   const [sel, setSel] = useState<Sel | null>(null);
   const items = itemsForPackage(pkg);
@@ -102,7 +103,7 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
             </tbody>
           </table>
         </div>
-        <p className="px-4 py-3 text-xs text-muted">Tap a cell for scope, material and drawing. Values are %.</p>
+        <p className="px-4 py-3 text-xs text-muted">Tap a cell for scope, material and drawing. Values are %. Live from store.</p>
       </Card>
 
       {sel && detail ? (
