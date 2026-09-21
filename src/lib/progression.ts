@@ -1,0 +1,127 @@
+// MEP matrix progression — shared Postgres JSON snapshot so every device sees
+// the same floor x item %. Seeded from report-data on first read.
+
+import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
+import { getSql } from "@/lib/db";
+import { report as seedReport } from "@/lib/report-data";
+
+export type ProgressionRow = {
+  level: string;
+  items: Record<string, number | null>;
+};
+
+export type ProgressionData = {
+  A: ProgressionRow[];
+  B: ProgressionRow[];
+};
+
+const progressionSchema = z.object({
+  A: z.array(
+    z.object({
+      level: z.string(),
+      items: z.record(z.union([z.number(), z.null()])),
+    }),
+  ),
+  B: z.array(
+    z.object({
+      level: z.string(),
+      items: z.record(z.union([z.number(), z.null()])),
+    }),
+  ),
+});
+
+function seedProgression(): ProgressionData {
+  return structuredClone(seedReport.progression) as ProgressionData;
+}
+
+/** Load shared progression; seed DB from report-data if empty. */
+export const getProgression = createServerFn({ method: "GET" }).handler(
+  async (): Promise<ProgressionData> => {
+    try {
+      const sql = await getSql();
+      const [row] = await sql<{ data: ProgressionData }>`
+        select data from mep_progression where id = 1
+      `;
+      if (row?.data) {
+        const parsed = progressionSchema.safeParse(row.data);
+        if (parsed.success) return parsed.data;
+      }
+      const seed = seedProgression();
+      await sql`
+        insert into mep_progression (id, data)
+        values (1, ${JSON.stringify(seed)}::jsonb)
+        on conflict (id) do nothing
+      `;
+      return seed;
+    } catch (error) {
+      console.error("[progression] load failed; using seed", error);
+      return seedProgression();
+    }
+  },
+);
+
+/** Replace the full progression snapshot (used after AI bulk updates). */
+export const saveProgression = createServerFn({ method: "POST" })
+  .validator(z.object({ data: progressionSchema }))
+  .handler(async ({ data }): Promise<{ ok: true; updatedAt: string }> => {
+    const sql = await getSql();
+    const [row] = await sql<{ updated_at: string }>`
+      insert into mep_progression (id, data, updated_at)
+      values (1, ${JSON.stringify(data.data)}::jsonb, now())
+      on conflict (id) do update
+        set data = excluded.data, updated_at = now()
+      returning updated_at
+    `;
+    return { ok: true, updatedAt: row.updated_at };
+  });
+
+/** Patch a level range for one item on one tower. */
+export const setItemRange = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      tower: z.enum(["A", "B"]),
+      item: z.string().min(1),
+      levelFrom: z.number().int().min(1).max(50),
+      levelTo: z.number().int().min(1).max(50),
+      value: z.number().min(0).max(1),
+    }),
+  )
+  .handler(
+    async ({
+      data,
+    }): Promise<{ ok: true; updated: number; progression: ProgressionData }> => {
+      const sql = await getSql();
+      let current: ProgressionData;
+
+      const [existing] = await sql<{ data: ProgressionData }>`
+        select data from mep_progression where id = 1
+      `;
+      if (existing?.data) {
+        const parsed = progressionSchema.safeParse(existing.data);
+        current = parsed.success ? parsed.data : seedProgression();
+      } else {
+        current = seedProgression();
+      }
+
+      const rows = current[data.tower];
+      let updated = 0;
+      for (const row of rows) {
+        const lvl = Number(row.level);
+        if (!Number.isFinite(lvl)) continue;
+        if (lvl >= data.levelFrom && lvl <= data.levelTo) {
+          row.items[data.item] = data.value;
+          updated++;
+        }
+      }
+
+      await sql`
+        insert into mep_progression (id, data, updated_at)
+        values (1, ${JSON.stringify(current)}::jsonb, now())
+        on conflict (id) do update
+          set data = excluded.data, updated_at = now()
+      `;
+
+      return { ok: true, updated, progression: current };
+    },
+  );
