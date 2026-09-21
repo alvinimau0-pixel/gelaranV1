@@ -184,7 +184,6 @@ function Home() {
             <div className="flex h-full flex-col items-center justify-center gap-2 text-white/60">
               <Camera className="size-8" />
               <p className="text-sm">No photos yet</p>
-              <p className="text-xs text-white/40">Upload from gallery or camera</p>
             </div>
           )}
           <div className="absolute right-2 top-2 flex gap-2">
@@ -204,7 +203,6 @@ function Home() {
               All
             </Link>
           </div>
-          {/* No capture= attribute → phone shows Gallery + Camera choice */}
           <input
             ref={fileRef}
             type="file"
