@@ -5,6 +5,22 @@ import { applyCommand } from "@/lib/apply-command";
 
 type Msg = { role: "user" | "assistant"; text: string };
 
+function friendlyError(error: unknown): string {
+  const raw = error instanceof Error ? error.message : String(error ?? "");
+  const lower = raw.toLowerCase();
+  if (
+    lower.includes("no such file") ||
+    lower.includes("enoent") ||
+    lower.includes("cannot find module") ||
+    lower.includes("failed to fetch") ||
+    lower.includes("network")
+  ) {
+    return "Server is still updating. Please wait a moment and try again, or hard-refresh the page.";
+  }
+  if (raw.length > 160) return "Something went wrong. Please try again.";
+  return raw || "Please try again.";
+}
+
 export function AiAssistant() {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
@@ -35,7 +51,7 @@ export function AiAssistant() {
         ...m,
         {
           role: "assistant",
-          text: `Something went wrong. ${error instanceof Error ? error.message : "Please try again."}`,
+          text: `Couldn’t complete that. ${friendlyError(error)}`,
         },
       ]);
     } finally {
