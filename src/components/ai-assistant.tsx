@@ -4,12 +4,15 @@ import {
   getAttendanceSummary,
   setAttendanceByName,
   setAttendanceForTeam,
+  listWorkers,
+  setAttendance,
   todayInKualaLumpur,
   type AttendanceStatus,
 } from "@/lib/attendance";
 import { useAppStore } from "@/lib/store";
 import { pct, cn } from "@/lib/utils";
 import { interpretAiCommand, type AiIntent } from "@/lib/ai-command";
+import { ITEM_META } from "@/lib/mep";
 
 type Msg = { role: "user" | "assistant"; text: string };
 type ProgressField = "overall" | "coldWater" | "sanitary" | "irrigation";
@@ -28,8 +31,40 @@ const attendanceLabels: Record<AttendanceStatus, string> = {
   Off: "off",
 };
 
+// Simple alias map so users can say "transfer pump" instead of full name
+const ITEM_ALIASES: Record<string, string> = {
+  "transfer pump": "TRANSFER PUMP PIPES",
+  "transfer pump pipes": "TRANSFER PUMP PIPES",
+  "tp pipes": "TRANSFER PUMP PIPES",
+  "hosereel": "HOSEREEL FLOORTRAP & STACK",
+  "hose reel": "HOSEREEL FLOORTRAP & STACK",
+  "pipe sleeve": "PIPE SLEEVE",
+  sleeve: "PIPE SLEEVE",
+  "cw tenant": "CW TENANT",
+  "cold water tenant": "CW TENANT",
+  "sanitary toilets": "SANITARY TOILETS",
+  toilets: "SANITARY TOILETS",
+  "irrigation outlet": "IRRIGATION OUTLET",
+  "irrigation inlet": "IRRIGATION INLET",
+};
+
+function resolveItemName(raw: string): string | null {
+  const cleaned = raw.trim().toLowerCase();
+  if (ITEM_ALIASES[cleaned]) return ITEM_ALIASES[cleaned];
+  // exact match against known items
+  const upper = raw.trim().toUpperCase();
+  if (ITEM_META[upper]) return upper;
+  // partial match
+  for (const key of Object.keys(ITEM_META)) {
+    if (key.toLowerCase().includes(cleaned) || cleaned.includes(key.toLowerCase().slice(0, 8))) {
+      return key;
+    }
+  }
+  return null;
+}
+
 function formatProgress(field: ProgressField, value: number) {
-  return `${progressLabels[field]} progress to **${pct(value)}**.`;
+  return `${progressLabels[field]} is now **${pct(value)}**`;
 }
 
 function parsePercent(value: string): number | null {
@@ -57,7 +92,7 @@ function parseAttendance(text: string): { workerName: string; status: Attendance
   if (!match) return null;
   const workerName = (match[1] ?? match[2] ?? match[3] ?? "").trim();
   const rawStatus = match[4].toLowerCase();
-  const status = rawStatus[0].toUpperCase() + rawStatus.slice(1) as AttendanceStatus;
+  const status = (rawStatus[0].toUpperCase() + rawStatus.slice(1)) as AttendanceStatus;
   const date = resolveDate(match[5]);
   if (!workerName) return null;
   return { workerName, status, date };
@@ -76,6 +111,41 @@ function parseTeamAttendance(text: string): { team: string; status: AttendanceSt
   };
 }
 
+/** "everyone present today" / "all present today" */
+function parseAllAttendance(text: string): { status: AttendanceStatus; date: string } | null {
+  const match = text.match(
+    /^(?:mark\s+)?(?:everyone|all(?:\s+workers)?|all\s+present)\s+(?:as\s+)?(present|absent|leave|off)?(?:\s+(?:for\s+|on\s+)?(today|yesterday|tomorrow|\d{4}-\d{2}-\d{2}))?$/i,
+  );
+  if (!match) return null;
+  const rawStatus = (match[1] ?? "present").toLowerCase();
+  return {
+    status: (rawStatus[0].toUpperCase() + rawStatus.slice(1)) as AttendanceStatus,
+    date: resolveDate(match[2]),
+  };
+}
+
+/** "update transfer pump tower A level 20 to level 29 95%" */
+function parseItemProgress(text: string): {
+  item: string;
+  tower: "A" | "B";
+  levelFrom: number;
+  levelTo: number;
+  value: number;
+} | null {
+  const match = text.match(
+    /(?:update|set|change)?\s*(.+?)\s+(?:on\s+)?(?:tower\s*)?([AB])\s+(?:level\s*|l\s*)?(\d+)\s*(?:to|-|–|—)\s*(?:level\s*|l\s*)?(\d+)\s+(\d+(?:\.\d+)?)\s*%?/i,
+  );
+  if (!match) return null;
+  const item = resolveItemName(match[1]);
+  if (!item) return null;
+  const tower = match[2].toUpperCase() as "A" | "B";
+  const levelFrom = Number(match[3]);
+  const levelTo = Number(match[4]);
+  const value = parsePercent(match[5]);
+  if (value === null || levelFrom > levelTo) return null;
+  return { item, tower, levelFrom, levelTo, value };
+}
+
 function refreshAttendanceTable() {
   window.dispatchEvent(new Event("gelaran:attendance-updated"));
 }
@@ -85,10 +155,18 @@ function intentToCommand(intent: AiIntent): string | null {
   if (intent.action === "help") return "help";
   if (intent.action === "status") return "status";
   if (intent.action === "attendance_summary") return `attendance ${date}`;
-  if (intent.action === "update_attendance" && intent.workerName && intent.status) return `mark "${intent.workerName}" ${intent.status.toLowerCase()} ${date}`;
-  if (intent.action === "update_team_attendance" && intent.team && intent.status) return `mark everyone in ${intent.team} ${intent.status.toLowerCase()} ${date}`;
-  if (intent.action === "update_progress" && intent.field && intent.value !== null) return `set ${intent.field} progress to ${intent.value}%`;
-  if (intent.action === "adjust_progress" && intent.field && intent.delta !== null) return `${intent.delta >= 0 ? "increase" : "decrease"} ${intent.field} by ${Math.abs(intent.delta)}%`;
+  if (intent.action === "update_attendance" && intent.workerName && intent.status)
+    return `mark "${intent.workerName}" ${intent.status.toLowerCase()} ${date}`;
+  if (intent.action === "update_team_attendance" && intent.team && intent.status)
+    return `mark everyone in ${intent.team} ${intent.status.toLowerCase()} ${date}`;
+  if (intent.action === "update_all_attendance" && intent.status)
+    return `everyone ${intent.status.toLowerCase()} ${date}`;
+  if (intent.action === "update_progress" && intent.field && intent.value !== null)
+    return `set ${intent.field} progress to ${intent.value}%`;
+  if (intent.action === "adjust_progress" && intent.field && intent.delta !== null)
+    return `${intent.delta >= 0 ? "increase" : "decrease"} ${intent.field} by ${Math.abs(intent.delta)}%`;
+  if (intent.action === "update_item_progress" && intent.item && intent.tower && intent.levelFrom != null && intent.levelTo != null && intent.value != null)
+    return `update ${intent.item} tower ${intent.tower} level ${intent.levelFrom} to level ${intent.levelTo} ${intent.value}%`;
   if (intent.action === "update_manpower" && intent.value !== null) return `set on site to ${intent.value}`;
   if (intent.action === "update_weather" && intent.text) return `set weather to "${intent.text}"`;
   if (intent.action === "update_focus" && intent.text) return `set today focus to "${intent.text}"`;
@@ -99,75 +177,154 @@ export async function applyCommand(text: string, useAi = true): Promise<string> 
   const store = useAppStore.getState();
   const lower = text.toLowerCase().replace(/[“”]/g, '"').trim();
 
-  if (!lower) return "Please enter a request. Type **help** to see examples.";
+  if (!lower) return "Just type what you need — try **help** if you want examples.";
 
+  // ── Help ──────────────────────────────────────────────────────────────
   if (/^(help|commands|what can you|how do i)/i.test(lower)) {
     return [
-      "**I can update the dashboard for you.** Use a direct command and I will confirm exactly what changed.",
-      "**Attendance:** `mark SOLIHIN present yesterday`, `set BILAL absent tomorrow`, or `mark everyone in team 4 present today`",
-      "**Attendance questions:** `who is absent today`, `how many workers are present`, or `roll call today`",
-      "**Manpower:** `set on site to 30`",
-      "**Progress:** `set cold water progress to 55%`, `cold water is at 55%`, or `we're 60% complete on sanitary`",
-      "**Conditions:** `set weather to Fair` or `set today focus to transfer pump at L13`",
-      "**Read-only check:** `status`",
-      "Attendance, BOQ, Photos, and other dashboard changes are managed here—not through page editing.",
+      "Sure, here’s what I can do for you:",
+      "",
+      "**Attendance**",
+      "· everyone present today",
+      "· mark SOLIHIN present today",
+      "· mark everyone in team 4 present",
+      "· who is absent today",
+      "",
+      "**Progress (easy way)**",
+      "· update transfer pump tower A level 20 to level 29 95%",
+      "· hosereel tower B L15-L22 80%",
+      "· set cold water to 55%",
+      "",
+      "**Other**",
+      "· set on site to 30",
+      "· set weather to Fair",
+      "· set today focus to transfer pump + hosereel",
+      "· status",
     ].join("\n");
   }
 
+  // ── Status ────────────────────────────────────────────────────────────
   if (/^(status|summary|progress|how.*(going|doing)|dashboard)/i.test(lower)) {
     const s = store.report.site;
     return [
-      "**Site snapshot**",
-      `· Overall ${pct(s.overall)} · Cold water ${pct(s.coldWater)} · Sanitary ${pct(s.sanitary)} · Irrigation ${pct(s.irrigation)}`,
-      `· On site: ${s.men} · Weather: ${s.weather} · Shift: ${s.shift}`,
-      `· Today: ${s.today}`,
-      "· Attendance updates: available by worker name or team",
+      `Here’s the snapshot right now:`,
+      `Overall **${pct(s.overall)}** · Cold water **${pct(s.coldWater)}** · Sanitary **${pct(s.sanitary)}** · Irrigation **${pct(s.irrigation)}**`,
+      `On site: **${s.men}** people · Weather: ${s.weather} · ${s.shift} shift`,
+      `Today’s focus: ${s.today}`,
     ].join("\n");
   }
 
-  if (/^(who is|who's|how many).*(present|absent|leave|off|attendance)/i.test(lower) || /^(attendance|roll call|headcount)\s*(today|yesterday|tomorrow)?$/i.test(lower)) {
-    const summary = await getAttendanceSummary({ data: { date: resolveDate(lower.match(/today|yesterday|tomorrow|\d{4}-\d{2}-\d{2}/i)?.[0]) } });
-    const requested = /absent/i.test(lower) ? "absent" : /leave/i.test(lower) ? "leave" : /off/i.test(lower) ? "off" : "present";
+  // ── Attendance questions ──────────────────────────────────────────────
+  if (
+    /^(who is|who's|how many).*(present|absent|leave|off|attendance)/i.test(lower) ||
+    /^(attendance|roll call|headcount)\s*(today|yesterday|tomorrow)?$/i.test(lower)
+  ) {
+    const summary = await getAttendanceSummary({
+      data: { date: resolveDate(lower.match(/today|yesterday|tomorrow|\d{4}-\d{2}-\d{2}/i)?.[0]) },
+    });
+    const requested = /absent/i.test(lower)
+      ? "absent"
+      : /leave/i.test(lower)
+        ? "leave"
+        : /off/i.test(lower)
+          ? "off"
+          : "present";
     const names = summary[requested as "present" | "absent" | "leave" | "off"];
-    return `**Attendance for ${summary.date}**\n· ${requested[0].toUpperCase() + requested.slice(1)}: **${names.length}**${names.length ? ` — ${names.join(", ")}` : " — none recorded"}\n· Present ${summary.present.length} · Absent ${summary.absent.length} · Leave ${summary.leave.length} · Off ${summary.off.length} · Blank ${summary.blank.length}`;
+    return [
+      `Attendance for **${summary.date}**:`,
+      `· ${requested[0].toUpperCase() + requested.slice(1)}: **${names.length}**${names.length ? ` — ${names.join(", ")}` : " — none"}`,
+      `· Present ${summary.present.length} · Absent ${summary.absent.length} · Leave ${summary.leave.length} · Off ${summary.off.length}`,
+    ].join("\n");
   }
 
+  // ── Everyone present / all present ────────────────────────────────────
+  const allAtt = parseAllAttendance(text.trim());
+  if (allAtt) {
+    try {
+      const workers = await listWorkers();
+      let count = 0;
+      for (const w of workers) {
+        await setAttendance({ data: { workerId: w.id, date: allAtt.date, status: allAtt.status } });
+        count++;
+      }
+      refreshAttendanceTable();
+      const label = attendanceLabels[allAtt.status];
+      return `All good — marked **${count} workers** ${label} for ${allAtt.date === todayInKualaLumpur().iso ? "today" : allAtt.date}.`;
+    } catch (error) {
+      return `Couldn’t update everyone just now. ${error instanceof Error ? error.message : "Please try again."}`;
+    }
+  }
+
+  // ── Team attendance ───────────────────────────────────────────────────
   const teamAttendance = parseTeamAttendance(text.trim());
   if (teamAttendance) {
     try {
       const result = await setAttendanceForTeam({ data: teamAttendance });
       refreshAttendanceTable();
-      return `Done — marked **${result.count} workers** in **${result.team}** ${attendanceLabels[teamAttendance.status]} on ${teamAttendance.date}. The table has been refreshed.`;
+      return `Done — marked **${result.count} workers** in **${result.team}** ${attendanceLabels[teamAttendance.status]} ${teamAttendance.date === todayInKualaLumpur().iso ? "today" : `on ${teamAttendance.date}`}.`;
     } catch (error) {
-      return `I could not update that team. ${error instanceof Error ? error.message : "Please check the team name."}`;
+      return `Couldn’t update that team. ${error instanceof Error ? error.message : "Check the team name."}`;
     }
   }
 
+  // ── Single worker attendance ──────────────────────────────────────────
   const attendance = parseAttendance(text.trim());
   if (attendance) {
     try {
       const result = await setAttendanceByName({ data: attendance });
       refreshAttendanceTable();
       const dateLabel = attendance.date === todayInKualaLumpur().iso ? "today" : `on ${attendance.date}`;
-      return `Done — **${result.workerName}** is marked **${attendanceLabels[attendance.status]}** ${dateLabel}. The attendance table has been refreshed.`;
+      return `Got it — **${result.workerName}** is now **${attendanceLabels[attendance.status]}** ${dateLabel}.`;
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Worker could not be found";
-      return `I could not update attendance. ${message} Please check the worker's name and try again.`;
+      const message = error instanceof Error ? error.message : "Worker not found";
+      return `Couldn’t update attendance. ${message}`;
     }
   }
 
   if (/^(?:mark|set|update)\s+.+\s+(?:present|absent|leave|off)/i.test(lower)) {
-    return "I recognized an attendance request, but need a worker name and status. Example: **mark SOLIHIN present today**.";
+    return "Almost — I need the worker’s name and status. Example: **mark SOLIHIN present today**.";
   }
 
-  const manpowerMatch = lower.match(/(?:set|update|change)?\s*(?:on\s*site|men|manpower|workers|people)\s*(?:to|=|:)?\s*(\d+)\b/i);
+  // ── Floor-range item progress ─────────────────────────────────────────
+  const itemProg = parseItemProgress(text.trim());
+  if (itemProg) {
+    const { item, tower, levelFrom, levelTo, value } = itemProg;
+    const report = structuredClone(store.report);
+    const rows = report.progression[tower];
+    let updated = 0;
+    for (const row of rows) {
+      const lvl = Number(row.level);
+      if (lvl >= levelFrom && lvl <= levelTo) {
+        if (row.items[item] !== undefined || ITEM_META[item]) {
+          row.items[item] = value;
+          updated++;
+        }
+      }
+    }
+    if (updated === 0) {
+      return `I couldn’t find levels ${levelFrom}–${levelTo} for **${item}** on Tower ${tower}. Check the level numbers.`;
+    }
+    store.updateReport({ progression: report.progression });
+    // also give a gentle bump to the package % so the overview moves
+    const pkg = ITEM_META[item]?.package;
+    if (pkg === "Cold Water") store.updateSite({ coldWater: Math.min(1, store.report.site.coldWater + 0.01) });
+    if (pkg === "Sanitary") store.updateSite({ sanitary: Math.min(1, store.report.site.sanitary + 0.01) });
+    if (pkg === "Irrigation") store.updateSite({ irrigation: Math.min(1, store.report.site.irrigation + 0.01) });
+    return `Updated **${item}** on Tower ${tower} from L${levelFrom} to L${levelTo} → **${Math.round(value * 100)}%** (${updated} floors).`;
+  }
+
+  // ── Manpower ──────────────────────────────────────────────────────────
+  const manpowerMatch = lower.match(
+    /(?:set|update|change)?\s*(?:on\s*site|men|manpower|workers|people)\s*(?:to|=|:)?\s*(\d+)\b/i,
+  );
   if (manpowerMatch) {
     const men = Number(manpowerMatch[1]);
-    if (men < 0 || men > 1000) return "Please provide an on-site manpower value from 0 to 1,000.";
+    if (men < 0 || men > 1000) return "Please give a number between 0 and 1,000.";
     store.updateSite({ men });
-    return `Done — on-site manpower is now **${men}**.`;
+    return `On-site manpower is now **${men}**.`;
   }
 
+  // ── High-level progress ───────────────────────────────────────────────
   const progressMatch = lower.match(
     /(?:set|update|change)?\s*(overall|cold\s*water|sanitary|irrigation)\s*(?:progress|complete|completion)?\s*(?:to|at|=|:)\s*(\d+(?:\.\d+)?)\s*%?/i,
   );
@@ -175,18 +332,20 @@ export async function applyCommand(text: string, useAi = true): Promise<string> 
     const rawField = progressMatch[1].replace(/\s+/g, "").toLowerCase() as ProgressField;
     const field = rawField in progressLabels ? rawField : null;
     const value = parsePercent(progressMatch[2]);
-    if (!field || value === null) return "Progress must be a percentage from 0% to 100%.";
+    if (!field || value === null) return "Progress needs to be a percentage from 0% to 100%.";
     store.updateSite({ [field]: value } as Partial<typeof store.report.site>);
-    return `Done — updated ${formatProgress(field, value)}`;
+    return `Updated — ${formatProgress(field, value)}.`;
   }
 
-  const naturalProgressMatch = lower.match(/(?:we(?:'re| are)|it(?:'s| is)|currently)\s+(\d+(?:\.\d+)?)\s*%\s*(?:complete|completed|done)\s*(?:on|for|with)\s+(overall|cold\s*water|sanitary|irrigation)/i);
+  const naturalProgressMatch = lower.match(
+    /(?:we(?:'re| are)|it(?:'s| is)|currently)\s+(\d+(?:\.\d+)?)\s*%\s*(?:complete|completed|done)\s*(?:on|for|with)\s+(overall|cold\s*water|sanitary|irrigation)/i,
+  );
   if (naturalProgressMatch) {
     const field = naturalProgressMatch[2].replace(/\s+/g, "").toLowerCase() as ProgressField;
     const value = parsePercent(naturalProgressMatch[1]);
-    if (!(field in progressLabels) || value === null) return "Please provide a progress value from 0% to 100%.";
+    if (!(field in progressLabels) || value === null) return "Please give a progress value from 0% to 100%.";
     store.updateSite({ [field]: value } as Partial<typeof store.report.site>);
-    return `Got it — ${formatProgress(field, value)}`;
+    return `Got it — ${formatProgress(field, value)}.`;
   }
 
   const adjustmentMatch = lower.match(
@@ -196,29 +355,33 @@ export async function applyCommand(text: string, useAi = true): Promise<string> 
     const rawField = adjustmentMatch[1].replace(/\s+/g, "").toLowerCase() as ProgressField;
     const field = rawField in progressLabels ? rawField : null;
     const delta = Number(adjustmentMatch[2]) / 100;
-    if (!field || !Number.isFinite(delta)) return "Progress adjustments must use a valid percentage.";
+    if (!field || !Number.isFinite(delta)) return "Need a valid percentage for the adjustment.";
     const direction = /^(increase|raise)/i.test(lower) ? 1 : -1;
     const value = Math.max(0, Math.min(1, store.report.site[field] + direction * delta));
     store.updateSite({ [field]: value } as Partial<typeof store.report.site>);
-    return `Done — adjusted ${formatProgress(field, value)}`;
+    return `Adjusted — ${formatProgress(field, value)}.`;
   }
 
+  // ── Weather & focus ───────────────────────────────────────────────────
   const weatherMatch = lower.match(/(?:set|update|change)?\s*weather\s*(?:to|=|:)\s*["']?(.+?)["']?$/i);
   if (weatherMatch) {
     const weather = weatherMatch[1].trim().replace(/["']$/g, "");
-    if (weather.length < 2 || weather.length > 40) return "Please provide a weather description between 2 and 40 characters.";
+    if (weather.length < 2 || weather.length > 40) return "Weather description should be 2–40 characters.";
     store.updateSite({ weather });
-    return `Done — weather is now **${weather}**.`;
+    return `Weather set to **${weather}**.`;
   }
 
-  const focusMatch = lower.match(/(?:set|update|change)?\s*(?:today|focus|work)\s*(?:focus)?\s*(?:to|=|:)\s*["']?(.+?)["']?$/i);
+  const focusMatch = lower.match(
+    /(?:set|update|change)?\s*(?:today|focus|work)\s*(?:focus)?\s*(?:to|=|:)\s*["']?(.+?)["']?$/i,
+  );
   if (focusMatch) {
     const focus = focusMatch[1].trim().replace(/["']$/g, "");
-    if (focus.length < 3 || focus.length > 100) return "Please provide a work focus between 3 and 100 characters.";
+    if (focus.length < 3 || focus.length > 100) return "Focus should be between 3 and 100 characters.";
     store.updateSite({ today: focus });
-    return `Done — today's work focus is now **${focus}**.`;
+    return `Today’s focus is now **${focus}**.`;
   }
 
+  // ── Fall back to LLM interpreter ──────────────────────────────────────
   if (useAi) {
     try {
       const intent = await interpretAiCommand({ data: { text: text.trim() } });
@@ -229,7 +392,7 @@ export async function applyCommand(text: string, useAi = true): Promise<string> 
     }
   }
 
-  return "I did not change anything. Type **help** for examples, or try **mark SOLIHIN present today**.";
+  return "I didn’t catch that one. Type **help** for examples, or try something like:\n· everyone present today\n· update transfer pump tower A level 20 to level 29 95%";
 }
 
 export function AiAssistant() {
@@ -239,7 +402,7 @@ export function AiAssistant() {
   const [msgs, setMsgs] = useState<Msg[]>([
     {
       role: "assistant",
-      text: "Hi — I understand natural requests for progress, manpower, conditions, and attendance. Try **who is absent today**, **mark everyone in team 4 present**, or type **help**.",
+      text: "Hi — just tell me what to update in plain English.\n\nTry:\n· **everyone present today**\n· **update transfer pump tower A level 20 to level 29 95%**\n· or type **help**",
     },
   ]);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -259,7 +422,10 @@ export function AiAssistant() {
       window.setTimeout(() => setMsgs((messages) => [...messages, { role: "assistant", text: reply }]), 120);
     } catch (error) {
       console.error("[ai-assistant] command failed", error);
-      setMsgs((messages) => [...messages, { role: "assistant", text: "I could not apply that change. Nothing was modified; please try a more specific command." }]);
+      setMsgs((messages) => [
+        ...messages,
+        { role: "assistant", text: "Something went wrong — nothing was changed. Try again with a clearer command." },
+      ]);
     } finally {
       setBusy(false);
     }
@@ -267,30 +433,77 @@ export function AiAssistant() {
 
   return (
     <>
-      <button type="button" onClick={() => setOpen((value) => !value)} className="fixed bottom-5 right-5 z-50 flex size-14 items-center justify-center rounded-full bg-ink text-accent-fg shadow-lg transition hover:scale-105" aria-label={open ? "Close AI assistant" : "Open AI assistant"}>
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        className="fixed bottom-5 right-5 z-50 flex size-14 items-center justify-center rounded-full bg-ink text-accent-fg shadow-lg transition hover:scale-105"
+        aria-label={open ? "Close AI assistant" : "Open AI assistant"}
+      >
         {open ? <X className="size-5" /> : <Sparkles className="size-5" />}
       </button>
       {open ? (
         <div className="fixed bottom-24 right-5 z-50 flex h-[min(34rem,76dvh)] w-[min(25rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl">
           <div className="flex items-center gap-2 border-b border-border bg-ink px-4 py-3 text-accent-fg">
             <Bot className="size-4" />
-            <div className="min-w-0 flex-1"><p className="text-sm font-semibold">Site AI assistant</p><p className="text-[11px] text-white/60">Clear commands · attendance enabled</p></div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold">Site AI assistant</p>
+              <p className="text-[11px] text-white/60">Natural language · attendance + progress</p>
+            </div>
           </div>
           <div className="flex-1 space-y-3 overflow-y-auto p-3 text-sm">
             {msgs.map((message, index) => (
-              <div key={index} className={cn("max-w-[92%] whitespace-pre-wrap rounded-xl px-3 py-2", message.role === "user" ? "ml-auto bg-ink text-accent-fg" : "bg-surface-2 text-fg")}>
-                {message.text.split("**").map((part, partIndex) => partIndex % 2 === 1 ? <strong key={partIndex}>{part}</strong> : <span key={partIndex}>{part}</span>)}
+              <div
+                key={index}
+                className={cn(
+                  "max-w-[92%] whitespace-pre-wrap rounded-xl px-3 py-2",
+                  message.role === "user" ? "ml-auto bg-ink text-accent-fg" : "bg-surface-2 text-fg",
+                )}
+              >
+                {message.text.split("**").map((part, partIndex) =>
+                  partIndex % 2 === 1 ? <strong key={partIndex}>{part}</strong> : <span key={partIndex}>{part}</span>,
+                )}
               </div>
             ))}
-            {busy ? <div className="flex items-center gap-2 rounded-xl bg-surface-2 px-3 py-2 text-muted"><Check className="size-3 animate-pulse" />Checking and applying…</div> : null}
+            {busy ? (
+              <div className="flex items-center gap-2 rounded-xl bg-surface-2 px-3 py-2 text-muted">
+                <Check className="size-3 animate-pulse" />
+                Working on it…
+              </div>
+            ) : null}
             <div ref={bottomRef} />
           </div>
           <div className="flex flex-wrap gap-1.5 border-t border-border p-2">
-            {["help", "status", "who is absent today", "mark SOLIHIN present today"].map((suggestion) => <button key={suggestion} type="button" disabled={busy} onClick={() => void send(suggestion)} className="rounded-full border border-border px-2 py-1 text-[11px] text-muted hover:border-accent hover:text-fg">{suggestion}</button>)}
+            {["help", "status", "everyone present today", "who is absent today"].map((suggestion) => (
+              <button
+                key={suggestion}
+                type="button"
+                disabled={busy}
+                onClick={() => void send(suggestion)}
+                className="rounded-full border border-border px-2 py-1 text-[11px] text-muted hover:border-accent hover:text-fg"
+              >
+                {suggestion}
+              </button>
+            ))}
           </div>
           <div className="flex gap-2 border-t border-border p-2">
-            <input value={input} disabled={busy} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => event.key === "Enter" && void send()} placeholder="Ask AI what to update…" className="min-w-0 flex-1 rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm outline-none focus:border-accent" aria-label="AI assistant command" />
-            <button type="button" disabled={busy} onClick={() => void send()} className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg bg-ink text-accent-fg disabled:opacity-50" aria-label="Send command to AI assistant"><Send className="size-4" /></button>
+            <input
+              value={input}
+              disabled={busy}
+              onChange={(event) => setInput(event.target.value)}
+              onKeyDown={(event) => event.key === "Enter" && void send()}
+              placeholder="e.g. update transfer pump tower A level 20 to 29 95%"
+              className="min-w-0 flex-1 rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm outline-none focus:border-accent"
+              aria-label="AI assistant command"
+            />
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void send()}
+              className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg bg-ink text-accent-fg disabled:opacity-50"
+              aria-label="Send command to AI assistant"
+            >
+              <Send className="size-4" />
+            </button>
           </div>
         </div>
       ) : null}
