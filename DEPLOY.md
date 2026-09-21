@@ -1,29 +1,14 @@
 # Gelaran V1 — Production
 
-**Merged deploy:** 2026-09-22 (matrix full names + gallery upload + AI/progression)
+**Deploy commit:** `7953361` (2026-09-22)
 
-Production URL: https://gelaran-v1-gm-2030.vercel.app
+URL: https://gelaran-v1-gm-2030.vercel.app
 
-## What’s included in this merge
+## Included
+- MEP matrix: **full item names** (no shortform)
+- Photo upload: **gallery or camera** (`accept=image/*`, no forced capture)
+- AI assistant: shared progression + friendly errors (no ENOENT path noise)
+- Hints cleaned up (no footer tips / empty-state instructions)
+- Package % from matrix average; progression in Postgres
 
-### AI assistant
-- Natural commands: `everyone present today`, `update transfer pump tower A level 20 to level 29 95%`
-- Floor progress saved to **shared Postgres** (all devices)
-- Package % recalculated from matrix average
-- Clearer errors (no raw ENOENT / path messages)
-
-### Site dashboard
-- Photo carousel + **gallery or camera** upload
-- Workers status
-- MEP matrix with **full item names** (no shortform)
-- Notes & quick links
-
-### Data
-- Photos: Vercel Blob + Postgres
-- Attendance: Postgres
-- Progression: `mep_progression` table (auto-created if needed)
-
-## Requirements
-- Vercel Blob store linked (Storage → Blob)
-- `DATABASE_URL` / Neon
-- Redeploy production from latest `main`
+Redeploy production from branch **main**.
