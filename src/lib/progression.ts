@@ -3,7 +3,7 @@
 
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { getSql } from "@/lib/db";
+import { getSql, type Sql } from "@/lib/db";
 import { report as seedReport } from "@/lib/report-data";
 
 export type ProgressionRow = {
@@ -35,11 +35,23 @@ function seedProgression(): ProgressionData {
   return structuredClone(seedReport.progression) as ProgressionData;
 }
 
+/** Create table if migration has not run yet (safe on every call). */
+async function ensureTable(sql: Sql): Promise<void> {
+  await sql`
+    create table if not exists mep_progression (
+      id integer primary key default 1 check (id = 1),
+      data jsonb not null,
+      updated_at timestamptz not null default now()
+    )
+  `;
+}
+
 /** Load shared progression; seed DB from report-data if empty. */
 export const getProgression = createServerFn({ method: "GET" }).handler(
   async (): Promise<ProgressionData> => {
     try {
       const sql = await getSql();
+      await ensureTable(sql);
       const [row] = await sql<{ data: ProgressionData }>`
         select data from mep_progression where id = 1
       `;
@@ -66,6 +78,7 @@ export const saveProgression = createServerFn({ method: "POST" })
   .validator(z.object({ data: progressionSchema }))
   .handler(async ({ data }): Promise<{ ok: true; updatedAt: string }> => {
     const sql = await getSql();
+    await ensureTable(sql);
     const [row] = await sql<{ updated_at: string }>`
       insert into mep_progression (id, data, updated_at)
       values (1, ${JSON.stringify(data.data)}::jsonb, now())
@@ -92,8 +105,9 @@ export const setItemRange = createServerFn({ method: "POST" })
       data,
     }): Promise<{ ok: true; updated: number; progression: ProgressionData }> => {
       const sql = await getSql();
-      let current: ProgressionData;
+      await ensureTable(sql);
 
+      let current: ProgressionData;
       const [existing] = await sql<{ data: ProgressionData }>`
         select data from mep_progression where id = 1
       `;
