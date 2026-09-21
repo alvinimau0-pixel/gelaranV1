@@ -140,3 +140,47 @@ export function relatedMaterial(item: string) {
     return false;
   });
 }
+
+type ProgressionLike = {
+  A: { level: string; items: Record<string, number | null> }[];
+  B: { level: string; items: Record<string, number | null> }[];
+};
+
+/**
+ * True package % from the matrix: average of all non-null cells for that
+ * package across Tower A + Tower B. Null (N/A) cells are skipped so plant-only
+ * items don't drag typical floors down.
+ */
+export function computePackageProgress(progression: ProgressionLike): {
+  coldWater: number;
+  sanitary: number;
+  irrigation: number;
+  overall: number;
+} {
+  const buckets: Record<"Cold Water" | "Sanitary" | "Irrigation", number[]> = {
+    "Cold Water": [],
+    Sanitary: [],
+    Irrigation: [],
+  };
+
+  for (const tower of ["A", "B"] as const) {
+    for (const row of progression[tower]) {
+      for (const [item, value] of Object.entries(row.items)) {
+        if (value == null || !Number.isFinite(value)) continue;
+        const pkg = ITEM_META[item]?.package;
+        if (!pkg) continue;
+        buckets[pkg].push(Math.max(0, Math.min(1, value)));
+      }
+    }
+  }
+
+  const avg = (arr: number[]) => (arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0);
+
+  const coldWater = avg(buckets["Cold Water"]);
+  const sanitary = avg(buckets.Sanitary);
+  const irrigation = avg(buckets.Irrigation);
+  const all = [...buckets["Cold Water"], ...buckets.Sanitary, ...buckets.Irrigation];
+  const overall = avg(all);
+
+  return { coldWater, sanitary, irrigation, overall };
+}
