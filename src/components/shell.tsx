@@ -2,7 +2,6 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import {
   Building2,
   Camera,
-  Droplets,
   FileSpreadsheet,
   Grid3x3,
   HardHat,
@@ -38,21 +37,25 @@ export function Shell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-dvh">
-      <header className="sticky top-0 z-40 border-b border-border bg-surface/90 backdrop-blur-md">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
-          <div className="flex min-w-0 items-center gap-3">
-            <span className="flex size-9 items-center justify-center rounded-sm bg-ink text-accent-fg">
-              <Droplets className="size-4" strokeWidth={2} />
-            </span>
+      <header className="sticky top-0 z-40 border-b border-border/80 bg-surface/85 backdrop-blur-xl supports-[backdrop-filter]:bg-surface/75">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-2.5 sm:px-6 sm:py-3">
+          <Link to="/" className="flex min-w-0 items-center gap-2.5 sm:gap-3">
+            <img
+              src="/logo.svg"
+              alt="Gelaran"
+              width={40}
+              height={40}
+              className="logo-mark size-9 shrink-0 rounded-full sm:size-10"
+            />
             <div className="min-w-0">
               <p className="truncate font-display text-sm font-semibold tracking-tight text-ink">
                 {report.meta.project}
               </p>
-              <p className="truncate text-xs text-muted">{report.meta.company}</p>
+              <p className="truncate text-[11px] text-muted sm:text-xs">{report.meta.company}</p>
             </div>
-          </div>
+          </Link>
           <div className="hidden items-center gap-2 text-xs text-muted lg:flex">
-            <span className="rounded-full bg-surface-2 px-3 py-1 font-medium text-fg">
+            <span className="rounded-full bg-surface-2 px-3 py-1 font-medium text-fg transition-colors">
               {report.meta.reportDate}
             </span>
             <span className="rounded-full bg-ok-bg px-3 py-1 font-medium text-ok">
@@ -62,7 +65,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              className="inline-flex size-11 items-center justify-center rounded-md border border-border bg-surface md:hidden"
+              className="inline-flex size-10 items-center justify-center rounded-xl border border-border bg-surface transition-all active:scale-95 md:hidden"
               aria-label={open ? "Close menu" : "Open menu"}
               onClick={() => setOpen((v) => !v)}
             >
@@ -70,7 +73,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             </button>
           </div>
         </div>
-        <nav className="mx-auto hidden max-w-7xl gap-1 overflow-x-auto px-4 pb-2 sm:px-6 md:flex">
+        <nav className="mx-auto hidden max-w-7xl gap-1 overflow-x-auto px-4 pb-2.5 sm:px-6 md:flex">
           {NAV.map((item) => {
             const active = pathname === item.to;
             const Icon = item.icon;
@@ -79,20 +82,20 @@ export function Shell({ children }: { children: React.ReactNode }) {
                 key={item.to}
                 to={item.to}
                 className={cn(
-                  "inline-flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors duration-150",
+                  "inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-200",
                   active
-                    ? "bg-ink text-accent-fg"
+                    ? "bg-ink text-accent-fg shadow-sm"
                     : "text-muted hover:bg-surface-2 hover:text-fg",
                 )}
               >
-                <Icon className="size-4" />
+                <Icon className="size-4 opacity-90" />
                 {item.label}
               </Link>
             );
           })}
         </nav>
         {open ? (
-          <nav className="grid gap-1 border-t border-border px-3 py-2 md:hidden">
+          <nav className="anim-fade grid gap-1 border-t border-border px-3 py-2 md:hidden">
             {NAV.map((item) => {
               const active = pathname === item.to;
               const Icon = item.icon;
@@ -102,7 +105,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
                   to={item.to}
                   onClick={() => setOpen(false)}
                   className={cn(
-                    "flex min-h-11 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium",
+                    "flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors",
                     active ? "bg-ink text-accent-fg" : "text-fg hover:bg-surface-2",
                   )}
                 >
@@ -114,7 +117,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           </nav>
         ) : null}
       </header>
-      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">{children}</main>
+      <main className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-8">{children}</main>
       <AiAssistant />
     </div>
   );
