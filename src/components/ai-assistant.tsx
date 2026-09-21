@@ -26,10 +26,7 @@ export function AiAssistant() {
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [msgs, setMsgs] = useState<Msg[]>([
-    {
-      role: "assistant",
-      text: "Hi — I can mark attendance and update floor progress. Try **everyone present today** or **update transfer pump tower A level 20 to level 29 95%**.",
-    },
+    { role: "assistant", text: "How can I help?" },
   ]);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -119,7 +116,7 @@ export function AiAssistant() {
               disabled={busy}
               onChange={(event) => setInput(event.target.value)}
               onKeyDown={(event) => event.key === "Enter" && void send()}
-              placeholder="e.g. update transfer pump tower A level 20 to 29 95%"
+              placeholder="Type a command…"
               className="min-w-0 flex-1 rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm outline-none focus:border-accent"
               aria-label="AI assistant command"
             />

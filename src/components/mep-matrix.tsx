@@ -110,9 +110,6 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
             </tbody>
           </table>
         </div>
-        <p className="px-3 py-2 text-[11px] text-muted sm:px-4 sm:py-3 sm:text-xs">
-          Tap a cell for scope & drawing. Swipe sideways on phone.
-        </p>
       </Card>
 
       {sel && detail ? (
