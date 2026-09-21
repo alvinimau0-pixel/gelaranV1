@@ -13,7 +13,7 @@ export function Card({
     <section
       style={style}
       className={cn(
-        "rounded-xl border border-border bg-surface p-4 shadow-[0_8px_24px_rgba(15,23,36,0.04)] sm:p-5",
+        "card-lift rounded-2xl border border-border/90 bg-surface p-4 shadow-[0_4px_20px_rgba(15,23,36,0.05)] sm:p-5",
         className,
       )}
     >
@@ -34,7 +34,7 @@ export function Badge({
     warn: "bg-warn-bg text-warn",
     bad: "bg-bad-bg text-bad",
     mute: "bg-surface-2 text-muted",
-    accent: "bg-accent/15 text-accent",
+    accent: "bg-accent/12 text-accent",
   };
   return (
     <span
@@ -83,8 +83,8 @@ export function Stat({
 }) {
   return (
     <Card className="anim-enter p-4" style={{ animationDelay: `${delay}ms` }}>
-      <p className="text-xs font-medium uppercase tracking-wide text-muted">{label}</p>
-      <p className="mt-2 font-display text-2xl font-semibold tabular-nums tracking-tight text-ink">
+      <p className="text-[11px] font-medium uppercase tracking-wide text-muted">{label}</p>
+      <p className="mt-1.5 font-display text-2xl font-semibold tabular-nums tracking-tight text-ink">
         {value}
       </p>
       {hint ? <p className="mt-1 text-xs text-subtle">{hint}</p> : null}
@@ -97,11 +97,11 @@ export function Stat({
   );
 }
 
-/** Mobile-first table wrapper — always scrolls horizontally, no forced min-width on small phones */
+/** Mobile-first table — clear zebra rows, soft header, horizontal scroll */
 export function TableWrap({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={cn("-mx-1 overflow-x-auto rounded-lg border border-border sm:mx-0", className)}>
-      <table className="w-full min-w-[520px] border-collapse text-left text-sm sm:min-w-[640px]">
+    <div className={cn("-mx-1 overflow-x-auto rounded-xl border border-border sm:mx-0", className)}>
+      <table className="table-clear w-full min-w-[520px] border-collapse text-left text-sm sm:min-w-[640px]">
         {children}
       </table>
     </div>
@@ -112,7 +112,7 @@ export function Th({ children, className }: { children: React.ReactNode; classNa
   return (
     <th
       className={cn(
-        "sticky top-0 whitespace-nowrap bg-surface-2 px-2 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted sm:px-3 sm:text-xs",
+        "sticky top-0 z-[1] whitespace-nowrap px-2.5 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted sm:px-3 sm:text-xs",
         className,
       )}
     >
@@ -133,7 +133,7 @@ export function Td({
   return (
     <td
       className={cn(
-        "border-t border-border px-2 py-2 text-fg sm:px-3 sm:py-2.5",
+        "border-t border-border px-2.5 py-2.5 text-fg transition-colors sm:px-3",
         numeric && "text-right font-mono tabular-nums text-[12px] sm:text-[13px]",
         className,
       )}
