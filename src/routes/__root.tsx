@@ -4,6 +4,7 @@ import { SpeedInsights } from "@vercel/speed-insights/react";
 import { AuthProvider } from "@/lib/auth/provider";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
 import { SupabaseRealtimeSync } from "@/components/supabase-realtime-sync";
+import { ProgressionSync } from "@/components/progression-sync";
 import { Shell } from "@/components/shell";
 import appCss from "../styles.css?url";
 
@@ -40,6 +41,7 @@ export const Route = createRootRoute({
       <body className="min-h-dvh bg-bg text-fg">
         <PreviewHostBridge />
         <SupabaseRealtimeSync />
+        <ProgressionSync />
         <AuthProvider>
           <Shell>
             <Outlet />
