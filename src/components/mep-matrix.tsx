@@ -26,15 +26,15 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
     : null;
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap gap-2">
+    <div className="space-y-3">
+      <div className="flex flex-wrap gap-1.5">
         {PACKAGES.map((p) => (
           <button
             key={p}
             type="button"
             onClick={() => setPkg(p)}
             className={cn(
-              "min-h-11 rounded-full px-4 text-sm font-medium transition-colors duration-150",
+              "min-h-9 rounded-full px-3 text-xs font-medium transition-colors duration-150 sm:min-h-11 sm:px-4 sm:text-sm",
               pkg === p ? "bg-ink text-accent-fg" : "bg-surface-2 text-muted hover:text-fg",
             )}
           >
@@ -44,19 +44,23 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
       </div>
 
       <Card className="p-0">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] border-collapse text-left text-xs">
+        <div className="-mx-px overflow-x-auto">
+          <table className="w-full min-w-[560px] border-collapse text-left text-[11px] sm:min-w-[680px] sm:text-xs">
             <thead>
               <tr>
-                <th className="sticky left-0 z-10 bg-surface-2 px-3 py-2 font-semibold uppercase tracking-wide text-muted">
+                <th className="sticky left-0 z-10 bg-surface-2 px-2 py-1.5 font-semibold uppercase tracking-wide text-muted sm:px-3 sm:py-2">
                   Lv
                 </th>
                 {tower ? null : (
-                  <th className="bg-surface-2 px-2 py-2 font-semibold uppercase tracking-wide text-muted">T</th>
+                  <th className="bg-surface-2 px-1.5 py-1.5 font-semibold uppercase tracking-wide text-muted sm:px-2 sm:py-2">
+                    T
+                  </th>
                 )}
                 {items.map((item) => (
-                  <th key={item} className="bg-surface-2 px-1 py-2 text-center font-semibold text-muted">
-                    <span className="inline-block max-w-16 leading-tight">{ITEM_META[item]?.short ?? item}</span>
+                  <th key={item} className="bg-surface-2 px-0.5 py-1.5 text-center font-semibold text-muted sm:px-1 sm:py-2">
+                    <span className="inline-block max-w-12 leading-tight sm:max-w-16">
+                      {ITEM_META[item]?.short ?? item}
+                    </span>
                   </th>
                 ))}
               </tr>
@@ -70,12 +74,12 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
                       {t === towers[0] ? (
                         <td
                           rowSpan={towers.length}
-                          className="sticky left-0 bg-surface px-3 py-1 font-medium text-fg"
+                          className="sticky left-0 bg-surface px-2 py-0.5 font-medium text-fg sm:px-3 sm:py-1"
                         >
                           {level}
                         </td>
                       ) : null}
-                      {tower ? null : <td className="px-2 py-1 text-muted">{t}</td>}
+                      {tower ? null : <td className="px-1.5 py-0.5 text-muted sm:px-2 sm:py-1">{t}</td>}
                       {items.map((item) => {
                         const v = row?.items[item] ?? null;
                         const active = sel?.level === level && sel.item === item && sel.tower === t;
@@ -85,7 +89,7 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
                               type="button"
                               onClick={() => setSel({ tower: t, level, item })}
                               className={cn(
-                                "flex h-9 w-full min-w-12 items-center justify-center rounded-xs font-mono tabular-nums transition-transform duration-150 hover:scale-[1.03]",
+                                "flex h-7 w-full min-w-9 items-center justify-center rounded-xs font-mono tabular-nums transition-transform duration-150 hover:scale-[1.03] sm:h-9 sm:min-w-12",
                                 cellTone(v),
                                 active && "ring-2 ring-ink",
                               )}
@@ -103,13 +107,15 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
             </tbody>
           </table>
         </div>
-        <p className="px-4 py-3 text-xs text-muted">Tap a cell for scope, material and drawing. Values are %. Live from store.</p>
+        <p className="px-3 py-2 text-[11px] text-muted sm:px-4 sm:py-3 sm:text-xs">
+          Tap a cell for scope & drawing. Swipe sideways on phone.
+        </p>
       </Card>
 
       {sel && detail ? (
         <div className="fixed inset-0 z-50 flex justify-end bg-ink/30" onClick={() => setSel(null)}>
           <aside
-            className="flex h-full w-full max-w-md flex-col overflow-y-auto bg-surface p-5 shadow-[0_8px_40px_rgba(15,23,36,0.18)]"
+            className="flex h-full w-full max-w-md flex-col overflow-y-auto bg-surface p-4 shadow-[0_8px_40px_rgba(15,23,36,0.18)] sm:p-5"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-3">
@@ -117,7 +123,7 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
                 <p className="text-xs font-medium uppercase tracking-wide text-muted">
                   Tower {sel.tower} · Level {sel.level}
                 </p>
-                <h2 className="mt-1 font-display text-xl font-semibold">{sel.item}</h2>
+                <h2 className="mt-1 font-display text-lg font-semibold sm:text-xl">{sel.item}</h2>
               </div>
               <button
                 type="button"
