@@ -1,9 +1,10 @@
-import { report } from "@/lib/report-data";
+import { useAppStore } from "@/lib/store";
 import { Badge, Card, Meter } from "@/components/ui";
 import { MepMatrix } from "@/components/mep-matrix";
 import { pct } from "@/lib/utils";
 
 export function TowerPage({ tower }: { tower: "A" | "B" }) {
+  const report = useAppStore((s) => s.report);
   const floors = report.floors.filter((f) => f.level !== "OVERALL");
   const overall = report.comparePackages.find((p) => p.package === "OVERALL");
   const value = tower === "A" ? overall?.a : overall?.b;
