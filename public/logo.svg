@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+  <defs>
+    <linearGradient id="gMetal" x1="16" y1="12" x2="112" y2="116" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#f5f7fa"/>
+      <stop offset="35%" stop-color="#c8d0dc"/>
+      <stop offset="55%" stop-color="#8b95a5"/>
+      <stop offset="75%" stop-color="#d4dbe6"/>
+      <stop offset="100%" stop-color="#6b7484"/>
+    </linearGradient>
+    <linearGradient id="gShine" x1="28" y1="24" x2="96" y2="100" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.55"/>
+      <stop offset="45%" stop-color="#ffffff" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.18"/>
+    </linearGradient>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="1.2" result="b"/>
+      <feOffset dy="1" result="o"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.25"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <!-- outer ring -->
+  <circle cx="64" cy="64" r="58" stroke="#0f1724" stroke-width="8" fill="#ffffff"/>
+  <circle cx="64" cy="64" r="50" fill="url(#gMetal)"/>
+  <circle cx="64" cy="64" r="50" fill="url(#gShine)"/>
+  <!-- G letter -->
+  <path
+    filter="url(#soft)"
+    fill="#ffffff"
+    d="M64 30c-18.8 0-34 15.2-34 34s15.2 34 34 34c12.4 0 23.2-6.6 29.2-16.4l-12.6-7.2C76.8 81.6 70.8 86 64 86c-12.2 0-22-9.8-22-22s9.8-22 22-22c7.4 0 13.8 3.6 17.8 9.2h-13.2v12.4h28.4C93.4 42.8 80.2 30 64 30z"
+  />
+</svg>
