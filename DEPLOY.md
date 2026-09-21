@@ -1,27 +1,34 @@
 # Gelaran V1 — Production
 
-Promoted: 2026-09-14 (cloud photo storage + shared manpower/attendance database)
-
-Features live on production:
-- Edit mode (dashboard + BOQ)
-- AI site assistant
-- Photos at home (date-sorted, auto-rotate) — now stored in Vercel Blob +
-  Postgres, shared across every device
-- Manpower / attendance — now a shared Postgres-backed directory with worker
-  profile photos, instead of per-browser localStorage
-- Live Zustand store (persisted) for the daily report only
+**Merged deploy:** 2026-09-22
 
 Production URL: https://gelaran-v1-gm-2030.vercel.app
 
-## New requirement: Vercel Blob
+## What’s included in this merge
 
-This deploy needs a Blob store linked to the project (Storage tab -> Create
-Database -> Blob -> Connect to Project). Vercel injects `BLOB_READ_WRITE_TOKEN`
-automatically once linked — nothing to set by hand. Without it, photo/profile
-photo uploads will fail with a clear error (the rest of the app still works).
+### AI assistant (human + powerful)
+- Natural commands: `everyone present today`, `update transfer pump tower A level 20 to level 29 95%`
+- Human-style confirmations
+- Floor-range progress updates + live matrix store
 
-`.grok/app-env.json` now sets `deploy.database: true` so the platform
-provisions a real Neon Postgres database and injects `DATABASE_URL` on this
-and future deploys.
+### Mobile-first site dashboard
+- Photo carousel (rotates every 3s) + upload
+- Workers status (present / absent / leave / off)
+- Compact MEP matrix
+- Notes & quick links (material, issues, workers, progress)
 
-Do not commit `.vercel/output`.
+### Tables & UI
+- All tables scroll cleanly on phone
+- Clearer zebra rows + soft headers
+- Modern light theme + smooth animations
+- Gelaran **G** logo in header + favicon
+
+### Data
+- Photos: Vercel Blob + Postgres (shared devices)
+- Attendance: Postgres-backed, AI-driven marks
+- Report progression: live Zustand store
+
+## Requirements
+- Vercel Blob store linked (Storage → Blob)
+- `DATABASE_URL` / Neon (via platform)
+- Do not commit `.vercel/output`
