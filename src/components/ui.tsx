@@ -13,7 +13,7 @@ export function Card({
     <section
       style={style}
       className={cn(
-        "rounded-xl border border-border bg-surface p-5 shadow-[0_8px_24px_rgba(15,23,36,0.04)]",
+        "rounded-xl border border-border bg-surface p-4 shadow-[0_8px_24px_rgba(15,23,36,0.04)] sm:p-5",
         className,
       )}
     >
@@ -97,10 +97,13 @@ export function Stat({
   );
 }
 
-export function TableWrap({ children }: { children: React.ReactNode }) {
+/** Mobile-first table wrapper — always scrolls horizontally, no forced min-width on small phones */
+export function TableWrap({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-border">
-      <table className="w-full min-w-[640px] border-collapse text-left text-sm">{children}</table>
+    <div className={cn("-mx-1 overflow-x-auto rounded-lg border border-border sm:mx-0", className)}>
+      <table className="w-full min-w-[520px] border-collapse text-left text-sm sm:min-w-[640px]">
+        {children}
+      </table>
     </div>
   );
 }
@@ -109,7 +112,7 @@ export function Th({ children, className }: { children: React.ReactNode; classNa
   return (
     <th
       className={cn(
-        "sticky top-0 bg-surface-2 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted",
+        "sticky top-0 whitespace-nowrap bg-surface-2 px-2 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted sm:px-3 sm:text-xs",
         className,
       )}
     >
@@ -130,8 +133,8 @@ export function Td({
   return (
     <td
       className={cn(
-        "border-t border-border px-3 py-2.5 text-fg",
-        numeric && "text-right font-mono tabular-nums text-[13px]",
+        "border-t border-border px-2 py-2 text-fg sm:px-3 sm:py-2.5",
+        numeric && "text-right font-mono tabular-nums text-[12px] sm:text-[13px]",
         className,
       )}
     >
