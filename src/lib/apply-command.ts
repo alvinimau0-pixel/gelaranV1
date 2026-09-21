@@ -29,6 +29,21 @@ const attendanceLabels: Record<AttendanceStatus, string> = {
   Off: "off",
 };
 
+function sanitizeError(error: unknown): string {
+  const raw = error instanceof Error ? error.message : String(error ?? "");
+  const lower = raw.toLowerCase();
+  if (
+    lower.includes("pglite") ||
+    lower.includes("enoent") ||
+    lower.includes("no such file") ||
+    lower.includes("database is not configured") ||
+    lower.includes("database_url")
+  ) {
+    return "Database is not configured. Add DATABASE_URL in Vercel → Environment Variables, then redeploy.";
+  }
+  return raw || "Please try again.";
+}
+
 const ITEM_ALIASES: Record<string, string> = {
   "transfer pump": "TRANSFER PUMP PIPES",
   "transfer pump pipes": "TRANSFER PUMP PIPES",
@@ -177,7 +192,7 @@ function intentToCommand(intent: AiIntent): string | null {
 
 export async function applyCommand(text: string, useAi = true): Promise<string> {
   const store = useAppStore.getState();
-  const lower = text.toLowerCase().replace(/[“”]/g, '"').trim();
+  const lower = text.toLowerCase().replace(/[“”']/g, '"').trim();
 
   if (!lower) return "Just type what you need — try **help** if you want examples.";
 
@@ -218,22 +233,26 @@ export async function applyCommand(text: string, useAi = true): Promise<string> 
     /^(who is|who's|how many).*(present|absent|leave|off|attendance)/i.test(lower) ||
     /^(attendance|roll call|headcount)\s*(today|yesterday|tomorrow)?$/i.test(lower)
   ) {
-    const summary = await getAttendanceSummary({
-      data: { date: resolveDate(lower.match(/today|yesterday|tomorrow|\d{4}-\d{2}-\d{2}/i)?.[0]) },
-    });
-    const requested = /absent/i.test(lower)
-      ? "absent"
-      : /leave/i.test(lower)
-        ? "leave"
-        : /off/i.test(lower)
-          ? "off"
-          : "present";
-    const names = summary[requested as "present" | "absent" | "leave" | "off"];
-    return [
-      `Attendance for **${summary.date}**:`,
-      `· ${requested[0].toUpperCase() + requested.slice(1)}: **${names.length}**${names.length ? ` — ${names.join(", ")}` : " — none"}`,
-      `· Present ${summary.present.length} · Absent ${summary.absent.length} · Leave ${summary.leave.length} · Off ${summary.off.length}`,
-    ].join("\n");
+    try {
+      const summary = await getAttendanceSummary({
+        data: { date: resolveDate(lower.match(/today|yesterday|tomorrow|\d{4}-\d{2}-\d{2}/i)?.[0]) },
+      });
+      const requested = /absent/i.test(lower)
+        ? "absent"
+        : /leave/i.test(lower)
+          ? "leave"
+          : /off/i.test(lower)
+            ? "off"
+            : "present";
+      const names = summary[requested as "present" | "absent" | "leave" | "off"];
+      return [
+        `Attendance for **${summary.date}**:`,
+        `· ${requested[0].toUpperCase() + requested.slice(1)}: **${names.length}**${names.length ? ` — ${names.join(", ")}` : " — none"}`,
+        `· Present ${summary.present.length} · Absent ${summary.absent.length} · Leave ${summary.leave.length} · Off ${summary.off.length}`,
+      ].join("\n");
+    } catch (error) {
+      return sanitizeError(error);
+    }
   }
 
   const allAtt = parseAllAttendance(text.trim());
@@ -249,7 +268,7 @@ export async function applyCommand(text: string, useAi = true): Promise<string> 
       const label = attendanceLabels[allAtt.status];
       return `All good — marked **${count} workers** ${label} for ${allAtt.date === todayInKualaLumpur().iso ? "today" : allAtt.date}.`;
     } catch (error) {
-      return `Couldn’t update everyone just now. ${error instanceof Error ? error.message : "Please try again."}`;
+      return `Couldn’t update everyone just now. ${sanitizeError(error)}`;
     }
   }
 
@@ -260,7 +279,7 @@ export async function applyCommand(text: string, useAi = true): Promise<string> 
       refreshAttendanceTable();
       return `Done — marked **${result.count} workers** in **${result.team}** ${attendanceLabels[teamAttendance.status]} ${teamAttendance.date === todayInKualaLumpur().iso ? "today" : `on ${teamAttendance.date}`}.`;
     } catch (error) {
-      return `Couldn’t update that team. ${error instanceof Error ? error.message : "Check the team name."}`;
+      return `Couldn’t update that team. ${sanitizeError(error)}`;
     }
   }
 
@@ -272,8 +291,7 @@ export async function applyCommand(text: string, useAi = true): Promise<string> 
       const dateLabel = attendance.date === todayInKualaLumpur().iso ? "today" : `on ${attendance.date}`;
       return `Got it — **${result.workerName}** is now **${attendanceLabels[attendance.status]}** ${dateLabel}.`;
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Worker not found";
-      return `Couldn’t update attendance. ${message}`;
+      return `Couldn’t update attendance. ${sanitizeError(error)}`;
     }
   }
 
