@@ -1,30 +1,32 @@
 @import "tailwindcss";
 
 @theme {
-  --color-bg: #f6f7f9;
+  --color-bg: #f4f6f9;
   --color-surface: #ffffff;
-  --color-surface-2: #eef1f5;
-  --color-fg: #1b2430;
-  --color-muted: #5c6775;
-  --color-subtle: #8a94a3;
-  --color-border: #e2e6ed;
-  --color-accent: #3d8bff;
+  --color-surface-2: #eef2f7;
+  --color-fg: #1a2332;
+  --color-muted: #5a6575;
+  --color-subtle: #8b96a8;
+  --color-border: #e3e8ef;
+  --color-accent: #3b82f6;
   --color-accent-fg: #ffffff;
-  --color-ok: #1f8a5b;
-  --color-ok-bg: #e8f6ee;
-  --color-warn: #b45309;
-  --color-warn-bg: #fff4e5;
-  --color-bad: #c2413b;
-  --color-bad-bg: #fdecea;
-  --color-ink: #0f1724;
-  --radius-xs: 4px;
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 24px;
+  --color-ok: #059669;
+  --color-ok-bg: #ecfdf5;
+  --color-warn: #d97706;
+  --color-warn-bg: #fffbeb;
+  --color-bad: #dc2626;
+  --color-bad-bg: #fef2f2;
+  --color-ink: #0b1220;
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --radius-xl: 28px;
   --font-sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
   --font-display: "Barlow", "IBM Plex Sans", system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --shadow-soft: 0 4px 20px rgba(15, 23, 36, 0.06);
+  --shadow-lift: 0 12px 40px rgba(15, 23, 36, 0.1);
 }
 
 @layer base {
@@ -57,9 +59,15 @@
   }
 }
 
+/* ── Smooth entrances ─────────────────────────────────────────────── */
 @keyframes fade-up {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @keyframes bar-fill {
@@ -67,11 +75,69 @@
   to { transform: scaleX(1); }
 }
 
+@keyframes soft-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+@keyframes logo-spin-soft {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 .anim-enter {
-  animation: fade-up 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: fade-up 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.anim-fade {
+  animation: fade-in 0.35s ease both;
 }
 
 .bar-fill {
   transform-origin: left center;
-  animation: bar-fill 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: bar-fill 0.75s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Logo subtle idle glow */
+.logo-mark {
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.35s ease;
+}
+.logo-mark:hover {
+  transform: scale(1.06);
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
+}
+
+/* Cards lift on hover (desktop) */
+@media (hover: hover) {
+  .card-lift {
+    transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s ease;
+  }
+  .card-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lift);
+  }
+}
+
+/* Clearer table styling */
+.table-clear th {
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+}
+.table-clear td {
+  border-color: #e8edf4;
+}
+.table-clear tr:hover td {
+  background: rgba(59, 130, 246, 0.04);
+}
+.table-clear tr:nth-child(even) td {
+  background: rgba(248, 250, 252, 0.7);
+}
+.table-clear tr:nth-child(even):hover td {
+  background: rgba(59, 130, 246, 0.06);
+}
+
+/* Sticky first column clearer on scroll */
+.table-clear .sticky-col {
+  box-shadow: 2px 0 8px rgba(15, 23, 36, 0.04);
 }
