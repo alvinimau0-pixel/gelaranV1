@@ -45,21 +45,24 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
 
       <Card className="p-0">
         <div className="-mx-px overflow-x-auto">
-          <table className="w-full min-w-[560px] border-collapse text-left text-[11px] sm:min-w-[680px] sm:text-xs">
+          <table className="w-full min-w-[960px] border-collapse text-left text-[11px] sm:min-w-[1100px] sm:text-xs">
             <thead>
               <tr>
-                <th className="sticky left-0 z-10 bg-surface-2 px-2 py-1.5 font-semibold uppercase tracking-wide text-muted sm:px-3 sm:py-2">
-                  Lv
+                <th className="sticky left-0 z-10 bg-surface-2 px-2 py-2 font-semibold uppercase tracking-wide text-muted sm:px-3">
+                  Level
                 </th>
                 {tower ? null : (
-                  <th className="bg-surface-2 px-1.5 py-1.5 font-semibold uppercase tracking-wide text-muted sm:px-2 sm:py-2">
-                    T
+                  <th className="bg-surface-2 px-1.5 py-2 font-semibold uppercase tracking-wide text-muted sm:px-2">
+                    Tower
                   </th>
                 )}
                 {items.map((item) => (
-                  <th key={item} className="bg-surface-2 px-0.5 py-1.5 text-center font-semibold text-muted sm:px-1 sm:py-2">
-                    <span className="inline-block max-w-12 leading-tight sm:max-w-16">
-                      {ITEM_META[item]?.short ?? item}
+                  <th
+                    key={item}
+                    className="bg-surface-2 px-1 py-2 text-center font-semibold leading-tight text-muted sm:px-1.5"
+                  >
+                    <span className="inline-block min-w-[4.5rem] max-w-[7.5rem] whitespace-normal normal-case">
+                      {item}
                     </span>
                   </th>
                 ))}
@@ -89,7 +92,7 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
                               type="button"
                               onClick={() => setSel({ tower: t, level, item })}
                               className={cn(
-                                "flex h-7 w-full min-w-9 items-center justify-center rounded-xs font-mono tabular-nums transition-transform duration-150 hover:scale-[1.03] sm:h-9 sm:min-w-12",
+                                "flex h-7 w-full min-w-10 items-center justify-center rounded-xs font-mono tabular-nums transition-transform duration-150 hover:scale-[1.03] sm:h-9 sm:min-w-12",
                                 cellTone(v),
                                 active && "ring-2 ring-ink",
                               )}
@@ -136,7 +139,6 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
             </div>
             <div className="mt-3 flex flex-wrap gap-2">
               <Badge tone="accent">{detail.meta?.package}</Badge>
-              <Badge>{detail.meta?.short}</Badge>
             </div>
             <p className="mt-4 text-sm text-muted">{detail.meta?.detail}</p>
             <div className="mt-5 grid grid-cols-2 gap-3">
