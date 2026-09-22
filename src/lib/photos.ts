@@ -6,6 +6,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { getSql } from "@/lib/db";
+import { recordAuditEvent } from "@/lib/audit.server";
 
 export type SitePhoto = {
   id: number;
@@ -81,6 +82,13 @@ export const createSitePhoto = createServerFn({ method: "POST" })
     }>`insert into site_photos (title, note, photo_url, photo_date, tower)
        values (${data.title}, ${data.note}, ${uploaded.url}, ${data.date}, ${data.tower ?? null})
        returning id, title, note, photo_url, photo_date, tower, created_at`;
+    await recordAuditEvent(sql, {
+      action: "site_photo.created",
+      entityType: "site_photo",
+      entityId: row.id,
+      summary: `Uploaded site photo ${row.title}`,
+      details: { title: data.title, date: data.date, tower: data.tower ?? null },
+    });
     return toSitePhoto(row);
   });
 
@@ -105,6 +113,13 @@ export const updateSitePhoto = createServerFn({ method: "POST" })
         updated_at = now()
       where id = ${data.id}
     `;
+    await recordAuditEvent(sql, {
+      action: "site_photo.updated",
+      entityType: "site_photo",
+      entityId: data.id,
+      summary: `Updated site photo ${data.id}`,
+      details: data,
+    });
     return { ok: true };
   });
 
@@ -118,5 +133,11 @@ export const deleteSitePhoto = createServerFn({ method: "POST" })
       const { deleteImage } = await import("@/lib/blob.server");
       await deleteImage(row.photo_url);
     }
+    await recordAuditEvent(sql, {
+      action: "site_photo.deleted",
+      entityType: "site_photo",
+      entityId: data.id,
+      summary: `Deleted site photo ${data.id}`,
+    });
     return { ok: true };
   });

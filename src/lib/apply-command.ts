@@ -14,6 +14,7 @@ import { pct } from "@/lib/utils";
 import { interpretAiCommand, type AiIntent } from "@/lib/ai-command";
 import { ITEM_META, computePackageProgress } from "@/lib/mep";
 import { setItemRange } from "@/lib/progression";
+export { isMutatingCommand } from "@/lib/command-safety";
 
 type ProgressField = "overall" | "coldWater" | "sanitary" | "irrigation";
 

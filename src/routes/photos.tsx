@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Calendar, Image as ImageIcon } from "lucide-react";
+import { Calendar, Image as ImageIcon, Pause, Play } from "lucide-react";
 import { Badge, Card } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { listSitePhotos, type SitePhoto } from "@/lib/photos";
@@ -11,6 +11,7 @@ function PhotosPage() {
   const [photos, setPhotos] = useState<SitePhoto[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [featuredIdx, setFeaturedIdx] = useState(0);
+  const [rotationPaused, setRotationPaused] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -29,10 +30,10 @@ function PhotosPage() {
 
   // Auto-rotate featured photo every 6s when multiple exist
   useEffect(() => {
-    if (photos.length < 2) return;
+    if (photos.length < 2 || rotationPaused) return;
     const t = setInterval(() => setFeaturedIdx((i) => (i + 1) % photos.length), 6000);
     return () => clearInterval(t);
-  }, [photos.length]);
+  }, [photos.length, rotationPaused]);
 
   useEffect(() => {
     setFeaturedIdx(0);
@@ -67,7 +68,14 @@ function PhotosPage() {
       {featured ? (
         <Card className="overflow-hidden p-0">
           <div className="relative aspect-[16/9] bg-ink sm:aspect-[21/9]">
-            <img src={featured.photoUrl} alt={featured.title} className="h-full w-full object-cover" />
+            <img
+              src={featured.photoUrl}
+              alt={featured.title}
+              width={1600}
+              height={900}
+              fetchPriority="high"
+              className="h-full w-full object-cover"
+            />
             <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-4 sm:p-6">
               <p className="text-xs font-medium uppercase tracking-wide text-white/70">
                 {featured.photoDate}
@@ -77,7 +85,7 @@ function PhotosPage() {
               {featured.note ? <p className="mt-1 max-w-xl text-sm text-white/80">{featured.note}</p> : null}
             </div>
             {photos.length > 1 ? (
-              <div className="absolute bottom-3 right-3 flex gap-1.5">
+              <div className="absolute bottom-3 right-3 flex items-center gap-1.5">
                 {photos.slice(0, 8).map((_, i) => (
                   <button
                     key={i}
@@ -88,15 +96,24 @@ function PhotosPage() {
                       "size-2 rounded-full transition-colors",
                       i === featuredIdx ? "bg-white" : "bg-white/40 hover:bg-white/70",
                     )}
-                  />
-                ))}
+                    />
+                  ))}
+                <button
+                  type="button"
+                  aria-label={rotationPaused ? "Resume photo rotation" : "Pause photo rotation"}
+                  aria-pressed={rotationPaused}
+                  onClick={() => setRotationPaused((paused) => !paused)}
+                  className="ml-1 inline-flex size-8 items-center justify-center rounded-full bg-black/50 text-white hover:bg-black/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                >
+                  {rotationPaused ? <Play className="size-3.5" aria-hidden="true" /> : <Pause className="size-3.5" aria-hidden="true" />}
+                </button>
               </div>
             ) : null}
           </div>
         </Card>
       ) : (
         <Card className="flex flex-col items-center justify-center gap-3 py-16 text-center">
-          <ImageIcon className="size-10 text-subtle" />
+          <ImageIcon className="size-10 text-subtle" aria-hidden="true" />
           <p className="font-display text-lg font-semibold">{loaded ? "No photos yet" : "Loading photos…"}</p>
           <p className="max-w-sm text-sm text-muted">
             Upload the first site photo. New uploads automatically appear first and rotate in the featured
@@ -108,7 +125,7 @@ function PhotosPage() {
       {byDate.map(([d, list]) => (
         <div key={d} className="space-y-3">
           <div className="flex items-center gap-2">
-            <Calendar className="size-4 text-muted" />
+            <Calendar className="size-4 text-muted" aria-hidden="true" />
             <h3 className="font-display text-base font-semibold">{d}</h3>
             <Badge tone="mute">{list.length}</Badge>
           </div>
@@ -124,7 +141,7 @@ function PhotosPage() {
                   }}
                 >
                   <div className="aspect-[4/3] bg-surface-2">
-                    <img src={p.photoUrl} alt={p.title} className="h-full w-full object-cover" />
+                    <img src={p.photoUrl} alt={p.title} width={1200} height={900} loading="lazy" className="h-full w-full object-cover" />
                   </div>
                   <div className="p-3">
                     <p className="font-medium leading-snug">{p.title}</p>

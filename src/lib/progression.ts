@@ -5,6 +5,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { getSql, type Sql } from "@/lib/db";
 import { report as seedReport } from "@/lib/report-data";
+import { recordAuditEvent } from "@/lib/audit.server";
 
 export type ProgressionRow = {
   level: string;
@@ -86,6 +87,12 @@ export const saveProgression = createServerFn({ method: "POST" })
         set data = excluded.data, updated_at = now()
       returning updated_at
     `;
+    await recordAuditEvent(sql, {
+      action: "progression.replaced",
+      entityType: "mep_progression",
+      entityId: "1",
+      summary: "Replaced the MEP progression snapshot",
+    });
     return { ok: true, updatedAt: row.updated_at };
   });
 
@@ -135,6 +142,14 @@ export const setItemRange = createServerFn({ method: "POST" })
         on conflict (id) do update
           set data = excluded.data, updated_at = now()
       `;
+
+      await recordAuditEvent(sql, {
+        action: "progression.range_updated",
+        entityType: "mep_progression",
+        entityId: `${data.tower}:${data.item}`,
+        summary: `Updated ${data.item} on Tower ${data.tower}, levels ${data.levelFrom}-${data.levelTo}`,
+        details: { ...data, updated },
+      });
 
       return { ok: true, updated, progression: current };
     },

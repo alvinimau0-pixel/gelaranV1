@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { X } from "lucide-react";
 import { useAppStore } from "@/lib/store";
@@ -21,6 +21,8 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
   const [pkg, setPkg] = useState<(typeof PACKAGES)[number]>("All");
   const [sel, setSel] = useState<Sel | null>(null);
   const [view, setView] = useState<"both" | "A" | "B">(tower ?? "both");
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const drawerRef = useRef<HTMLElement | null>(null);
   const items = itemsForPackage(pkg);
   const levels = report.progression.A.map((r) => r.level);
   const towers: ("A" | "B")[] = view === "both" ? ["A", "B"] : [view];
@@ -44,6 +46,43 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
   const selectCell = (t: "A" | "B", level: string, item: string) =>
     setSel({ tower: t, level, item });
 
+  useEffect(() => {
+    if (!sel) return;
+
+    const previousTrigger = triggerRef.current;
+    const drawer = drawerRef.current;
+    const focusable = drawer
+      ? Array.from(drawer.querySelectorAll<HTMLElement>('button, a[href], [tabindex]:not([tabindex="-1"])')).filter(
+          (element) => !element.hasAttribute("disabled"),
+        )
+      : [];
+    focusable[0]?.focus();
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setSel(null);
+        return;
+      }
+      if (event.key !== "Tab" || focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      previousTrigger?.focus();
+    };
+  }, [sel]);
+
   return (
     <div className="space-y-3">
       {!tower ? (
@@ -61,7 +100,7 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
                 aria-selected={view === value}
                 onClick={() => { setView(value); setSel(null); }}
                 className={cn(
-                  "min-h-12 rounded-lg px-2 py-2 text-left transition-all",
+                  "min-h-12 rounded-lg px-2 py-2 text-left transition-[background-color,color,box-shadow]",
                   view === value ? "bg-ink text-accent-fg shadow-sm" : "text-muted hover:bg-surface-2 hover:text-fg",
                 )}
               >
@@ -121,17 +160,18 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
             </colgroup>
             <thead>
               <tr>
-                <th className="sticky left-0 z-20 border-b border-border bg-surface-2 px-1.5 py-2 text-center font-semibold uppercase tracking-wide text-fg">
+                <th scope="col" className="sticky left-0 z-20 border-b border-border bg-surface-2 px-1.5 py-2 text-center font-semibold uppercase tracking-wide text-fg">
                   Lvl
                 </th>
                 {view !== "both" ? null : (
-                  <th className="border-b border-border bg-surface-2 px-1 py-2 text-center font-semibold uppercase tracking-wide text-fg">
+                  <th scope="col" className="border-b border-border bg-surface-2 px-1 py-2 text-center font-semibold uppercase tracking-wide text-fg">
                     T
                   </th>
                 )}
                 {items.map((item) => (
                   <th
                     key={item}
+                    scope="col"
                     title={item}
                     className="border-b border-l border-border bg-surface-2 px-0.5 py-2 text-center font-semibold leading-tight text-fg"
                   >
@@ -147,12 +187,13 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
                   return (
                     <tr key={`${level}-${t}`}>
                       {t === towers[0] ? (
-                        <td
+                        <th
                           rowSpan={towers.length}
+                          scope="row"
                           className="sticky left-0 z-10 border-b border-border bg-surface px-1.5 py-1 text-center font-semibold text-fg"
                         >
                           {level}
-                        </td>
+                        </th>
                       ) : null}
                       {view !== "both" ? null : (
                         <td className="border-b border-border px-1 py-1 text-center font-semibold text-muted">{t}</td>
@@ -165,7 +206,10 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
                           <td key={item} className="border-b border-border p-0.5">
                             <button
                               type="button"
-                              onClick={() => selectCell(t, level, item)}
+                              onClick={(event) => {
+                                triggerRef.current = event.currentTarget;
+                                selectCell(t, level, item);
+                              }}
                               className={cn(
                                 "flex h-8 w-full items-center justify-center rounded-md font-mono text-[11px] font-bold tabular-nums transition-transform hover:scale-[1.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink lg:h-9",
                                 cellTone(v),
@@ -186,8 +230,8 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
             </tbody>
             <tfoot>
               <tr>
-                <th className="sticky left-0 z-10 bg-ink px-1.5 py-2 text-center text-[10px] font-bold uppercase tracking-wide text-white">Overall</th>
-                {tower ? null : <th className="bg-ink px-1 py-2 text-center text-[10px] font-bold text-white">—</th>}
+                <th scope="row" className="sticky left-0 z-10 bg-ink px-1.5 py-2 text-center text-[10px] font-bold uppercase tracking-wide text-white">Overall</th>
+                {tower ? null : <th scope="col" className="bg-ink px-1 py-2 text-center text-[10px] font-bold text-white">—</th>}
                 {items.map((item) => {
                   const value = overallFor(item);
                   return <td key={item} className="bg-ink px-0.5 py-2 text-center font-mono text-[10px] font-bold tabular-nums text-white">{value == null ? "—" : `${Math.round(value * 100)}%`}</td>;
@@ -215,7 +259,10 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
                         <button
                           key={item}
                           type="button"
-                          onClick={() => selectCell(t, level, item)}
+                          onClick={(event) => {
+                            triggerRef.current = event.currentTarget;
+                            selectCell(t, level, item);
+                          }}
                           className={cn(
                             "flex min-h-12 items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left transition-transform active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink",
                             cellTone(v),
@@ -249,15 +296,20 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
       </Card>
 
       {sel && detail ? (
-        <div className="fixed inset-0 z-50 flex justify-end bg-ink/30" onClick={() => setSel(null)}>
+        <div className="fixed inset-0 z-50 flex justify-end overscroll-contain bg-ink/30" onClick={() => setSel(null)}>
           <aside
+            ref={drawerRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="mep-detail-title"
+            tabIndex={-1}
             className="flex h-full w-full max-w-md flex-col overflow-y-auto bg-surface p-4 shadow-[0_8px_40px_rgba(15,23,36,0.18)] sm:p-5"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-xs font-medium uppercase tracking-wide text-muted">Tower {sel.tower} · Level {sel.level}</p>
-                <h2 className="mt-1 font-display text-lg font-semibold sm:text-xl">{sel.item}</h2>
+                <h2 id="mep-detail-title" className="mt-1 font-display text-lg font-semibold sm:text-xl">{sel.item}</h2>
               </div>
               <button
                 type="button"
@@ -265,7 +317,7 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
                 onClick={() => setSel(null)}
                 aria-label="Close"
               >
-                <X className="size-4" />
+                <X className="size-4" aria-hidden="true" />
               </button>
             </div>
             <div className="mt-3 flex flex-wrap gap-2"><Badge tone="accent">{detail.meta?.package}</Badge></div>

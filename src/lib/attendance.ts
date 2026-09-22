@@ -11,6 +11,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { getSql } from "@/lib/db";
 import { report as seedReport } from "@/lib/report-data";
+import { recordAuditEvent } from "@/lib/audit.server";
 
 export const KL_TZ = "Asia/Kuala_Lumpur";
 
@@ -160,6 +161,13 @@ export const setAttendance = createServerFn({ method: "POST" })
     const sql = await getSql();
     if (data.status === null) {
       await sql`delete from attendance where worker_id = ${data.workerId} and attendance_date = ${data.date}`;
+      await recordAuditEvent(sql, {
+        action: "attendance.cleared",
+        entityType: "attendance",
+        entityId: `${data.workerId}:${data.date}`,
+        summary: `Cleared attendance for worker ${data.workerId} on ${data.date}`,
+        details: data,
+      });
       return { ok: true };
     }
     await sql`
@@ -168,6 +176,13 @@ export const setAttendance = createServerFn({ method: "POST" })
       on conflict (worker_id, attendance_date)
       do update set status = excluded.status, updated_at = now()
     `;
+    await recordAuditEvent(sql, {
+      action: "attendance.updated",
+      entityType: "attendance",
+      entityId: `${data.workerId}:${data.date}`,
+      summary: `Marked worker ${data.workerId} ${data.status} on ${data.date}`,
+      details: data,
+    });
     return { ok: true };
   });
 
@@ -194,6 +209,13 @@ export const setAttendanceByName = createServerFn({ method: "POST" })
       on conflict (worker_id, attendance_date)
       do update set status = excluded.status, updated_at = now()
     `;
+    await recordAuditEvent(sql, {
+      action: "attendance.updated",
+      entityType: "attendance",
+      entityId: `${worker.id}:${data.date}`,
+      summary: `Marked ${worker.name} ${data.status} on ${data.date}`,
+      details: data,
+    });
     return { ok: true, workerId: worker.id, workerName: worker.name };
   });
 
@@ -220,6 +242,13 @@ export const setAttendanceForTeam = createServerFn({ method: "POST" })
         do update set status = excluded.status, updated_at = now()
       `;
     }
+    await recordAuditEvent(sql, {
+      action: "attendance.team_updated",
+      entityType: "attendance",
+      entityId: data.team,
+      summary: `Marked ${workers.length} workers in ${data.team} ${data.status} on ${data.date}`,
+      details: data,
+    });
     return { ok: true, count: workers.length, team: data.team };
   });
 
@@ -277,6 +306,13 @@ export const addWorker = createServerFn({ method: "POST" })
         updated_at = now()
       returning id, employee_code, name, trade, team, subcontractor, phone, photo_url, active
     `;
+    await recordAuditEvent(sql, {
+      action: "worker.upserted",
+      entityType: "worker",
+      entityId: row.id,
+      summary: `Added or restored worker ${row.name}`,
+      details: data,
+    });
     return {
       ok: true,
       worker: {
@@ -304,6 +340,13 @@ export const removeWorker = createServerFn({ method: "POST" })
       returning id, name
     `;
     if (!worker) throw new Error(`Active worker not found: ${data.workerName}`);
+    await recordAuditEvent(sql, {
+      action: "worker.deactivated",
+      entityType: "worker",
+      entityId: worker.id,
+      summary: `Deactivated worker ${worker.name}`,
+      details: data,
+    });
     return { ok: true, workerName: worker.name };
   });
 
@@ -323,5 +366,11 @@ export const saveWorkerPhoto = createServerFn({ method: "POST" })
     const uploaded = await uploadBase64Image("workers", data.contentType, data.base64Data);
     await sql`update workers set photo_url = ${uploaded.url}, updated_at = now() where id = ${data.workerId}`;
     if (existing.photo_url) await deleteImage(existing.photo_url);
+    await recordAuditEvent(sql, {
+      action: "worker.photo_updated",
+      entityType: "worker",
+      entityId: data.workerId,
+      summary: `Updated worker photo for ${data.workerId}`,
+    });
     return { photoUrl: uploaded.url };
   });

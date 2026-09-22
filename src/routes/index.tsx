@@ -7,7 +7,9 @@ import {
   ClipboardList,
   HardHat,
   ImagePlus,
+  Pause,
   Package,
+  Play,
   TrendingUp,
   Users,
 } from "lucide-react";
@@ -80,7 +82,9 @@ function Home() {
 
   const [photos, setPhotos] = useState<SitePhoto[]>([]);
   const [photoIdx, setPhotoIdx] = useState(0);
+  const [photoPaused, setPhotoPaused] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -96,13 +100,14 @@ function Home() {
   }, []);
 
   useEffect(() => {
-    if (photos.length < 2) return;
+    if (photos.length < 2 || photoPaused) return;
     const t = setInterval(() => setPhotoIdx((i) => (i + 1) % photos.length), 3000);
     return () => clearInterval(t);
-  }, [photos.length]);
+  }, [photoPaused, photos.length]);
 
   async function onUpload(file: File | null) {
     if (!file || !file.type.startsWith("image/")) return;
+    setUploadError(null);
     setUploading(true);
     try {
       const { base64Data, contentType } = await compressImageToBase64(file);
@@ -120,7 +125,7 @@ function Home() {
       setPhotoIdx(0);
     } catch (err) {
       console.error("[dashboard] upload failed", err);
-      alert("Upload failed. Please try again.");
+      setUploadError("Upload failed. Please try again.");
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
@@ -152,6 +157,9 @@ function Home() {
                 key={featured.id}
                 src={featured.photoUrl}
                 alt={featured.title}
+                width={1600}
+                height={1000}
+                fetchPriority="high"
                 className="h-full w-full object-cover transition-opacity duration-500"
               />
               <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent p-3 sm:p-4">
@@ -164,8 +172,8 @@ function Home() {
                 </p>
               </div>
               {photos.length > 1 ? (
-                <div className="absolute bottom-3 right-3 flex gap-1">
-                  {photos.slice(0, 8).map((_, i) => (
+                  <div className="absolute bottom-3 right-3 flex items-center gap-1">
+                    {photos.slice(0, 8).map((_, i) => (
                     <button
                       key={i}
                       type="button"
@@ -175,14 +183,23 @@ function Home() {
                         "size-1.5 rounded-full transition-colors sm:size-2",
                         i === photoIdx ? "bg-white" : "bg-white/40",
                       )}
-                    />
-                  ))}
-                </div>
+                      />
+                    ))}
+                    <button
+                      type="button"
+                      aria-label={photoPaused ? "Resume photo rotation" : "Pause photo rotation"}
+                      aria-pressed={photoPaused}
+                      onClick={() => setPhotoPaused((paused) => !paused)}
+                      className="ml-1 inline-flex size-7 items-center justify-center rounded-full bg-black/50 text-white hover:bg-black/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                    >
+                      {photoPaused ? <Play className="size-3.5" aria-hidden="true" /> : <Pause className="size-3.5" aria-hidden="true" />}
+                    </button>
+                  </div>
               ) : null}
             </>
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-2 text-white/60">
-              <Camera className="size-8" />
+              <Camera className="size-8" aria-hidden="true" />
               <p className="text-sm">No photos yet</p>
             </div>
           )}
@@ -193,7 +210,7 @@ function Home() {
               onClick={() => fileRef.current?.click()}
               className="inline-flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1.5 text-xs font-medium text-white backdrop-blur hover:bg-black/70 disabled:opacity-50"
             >
-              <ImagePlus className="size-3.5" />
+              <ImagePlus className="size-3.5" aria-hidden="true" />
               {uploading ? "Uploading…" : "Upload"}
             </button>
             <Link
@@ -207,16 +224,18 @@ function Home() {
             ref={fileRef}
             type="file"
             accept="image/*"
+            aria-label="Upload site photo"
             className="hidden"
             onChange={(e) => void onUpload(e.target.files?.[0] ?? null)}
           />
         </div>
+        {uploadError ? <p role="alert" className="border-t border-bad/20 bg-bad-bg px-3 py-2 text-sm text-bad">{uploadError}</p> : null}
       </Card>
 
       <Card>
         <div className="mb-3 flex items-center justify-between gap-2">
           <h2 className="flex items-center gap-2 font-display text-base font-semibold sm:text-lg">
-            <Users className="size-4 text-muted" />
+            <Users className="size-4 text-muted" aria-hidden="true" />
             Workers today
           </h2>
           <Link to="/manpower" className="text-xs font-medium text-accent hover:underline">
@@ -259,7 +278,7 @@ function Home() {
               >
                 <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-2 text-[10px] font-semibold text-muted">
                   {w.photoUrl ? (
-                    <img src={w.photoUrl} alt="" className="h-full w-full object-cover" />
+                    <img src={w.photoUrl} alt="" width={64} height={64} loading="lazy" className="h-full w-full object-cover" />
                   ) : (
                     w.name.slice(0, 2)
                   )}
@@ -322,7 +341,7 @@ function Home() {
                   <span className="shrink-0 font-mono font-bold tabular-nums text-muted">{group.workers} · {Math.round((group.workers / report.dailyReport.totalWorkers) * 100)}%</span>
                 </div>
                 <div className="h-2.5 overflow-hidden rounded-full bg-surface">
-                  <div className={cn("h-full rounded-full transition-all", group.color)} style={{ width: `${(group.workers / report.dailyReport.totalWorkers) * 100}%` }} />
+                  <div className={cn("h-full rounded-full", group.color)} style={{ width: `${(group.workers / report.dailyReport.totalWorkers) * 100}%` }} />
                 </div>
               </div>
             ))}
@@ -357,7 +376,7 @@ function Home() {
 
       <Card>
         <h2 className="mb-3 flex items-center gap-2 font-display text-base font-semibold sm:text-lg">
-          <ClipboardList className="size-4 text-muted" />
+          <ClipboardList className="size-4 text-muted" aria-hidden="true" />
           Notes & quick links
         </h2>
         <div className="grid gap-2 sm:grid-cols-2">
@@ -365,7 +384,7 @@ function Home() {
             to="/material"
             className="flex items-center gap-3 rounded-lg border border-border bg-surface-2 px-3 py-3 transition hover:border-accent"
           >
-            <Package className="size-5 shrink-0 text-accent" />
+            <Package className="size-5 shrink-0 text-accent" aria-hidden="true" />
             <div className="min-w-0">
               <p className="text-sm font-medium">Material delivered</p>
               <p className="text-xs text-muted">
@@ -377,7 +396,7 @@ function Home() {
             to="/po-log"
             className="flex items-center gap-3 rounded-lg border border-border bg-surface-2 px-3 py-3 transition hover:border-accent"
           >
-            <AlertTriangle className="size-5 shrink-0 text-warn" />
+            <AlertTriangle className="size-5 shrink-0 text-warn" aria-hidden="true" />
             <div className="min-w-0">
               <p className="text-sm font-medium">Issues / PO log</p>
               <p className="text-xs text-muted">Purchase orders & outstanding</p>
@@ -387,7 +406,7 @@ function Home() {
             to="/manpower"
             className="flex items-center gap-3 rounded-lg border border-border bg-surface-2 px-3 py-3 transition hover:border-accent"
           >
-            <HardHat className="size-5 shrink-0 text-ok" />
+            <HardHat className="size-5 shrink-0 text-ok" aria-hidden="true" />
             <div className="min-w-0">
               <p className="text-sm font-medium">Workers</p>
               <p className="text-xs text-muted">
@@ -399,7 +418,7 @@ function Home() {
             to="/matrix"
             className="flex items-center gap-3 rounded-lg border border-border bg-surface-2 px-3 py-3 transition hover:border-accent"
           >
-            <TrendingUp className="size-5 shrink-0 text-accent" />
+            <TrendingUp className="size-5 shrink-0 text-accent" aria-hidden="true" />
             <div className="min-w-0">
               <p className="text-sm font-medium">Progress</p>
               <p className="text-xs text-muted">
@@ -410,12 +429,12 @@ function Home() {
         </div>
         {s.blockers ? (
           <div className="mt-3 flex items-start gap-2 rounded-lg bg-warn-bg px-3 py-2 text-sm text-warn">
-            <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+            <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
             <span>Blocker: {s.blockers}</span>
           </div>
         ) : (
           <div className="mt-3 flex items-center gap-2 text-xs text-muted">
-            <CheckCircle2 className="size-3.5 text-ok" />
+            <CheckCircle2 className="size-3.5 text-ok" aria-hidden="true" />
             No blockers recorded · Focus: {s.today}
           </div>
         )}

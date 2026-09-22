@@ -111,7 +111,7 @@ function Manpower() {
               <div key={w.id} className="flex items-center gap-3 rounded-lg border border-border bg-surface-2 p-2.5 sm:p-3">
                 <div className="relative size-10 shrink-0 overflow-hidden rounded-full border border-border bg-surface sm:size-12">
                   {w.photoUrl ? (
-                    <img src={w.photoUrl} alt={w.name} className="h-full w-full object-cover" />
+                    <img src={w.photoUrl} alt={w.name} width={96} height={96} loading="lazy" className="h-full w-full object-cover" />
                   ) : (
                     <span className="flex h-full w-full items-center justify-center text-xs font-semibold text-subtle">
                       {w.name.slice(0, 2)}
@@ -153,9 +153,10 @@ function Manpower() {
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] border-collapse text-center text-[10px] sm:min-w-[900px] sm:text-xs">
+            <caption className="sr-only">{monthLabel} attendance register for all workers</caption>
             <thead>
               <tr>
-                <th className="sticky left-0 z-10 bg-surface-2 px-2 py-1.5 text-left font-semibold uppercase tracking-wide text-muted sm:px-3 sm:py-2">
+                <th scope="col" className="sticky left-0 z-10 bg-surface-2 px-2 py-1.5 text-left font-semibold uppercase tracking-wide text-muted sm:px-3 sm:py-2">
                   Name
                 </th>
                 {days.map((d) => {
@@ -163,6 +164,7 @@ function Manpower() {
                   return (
                     <th
                       key={d}
+                      scope="col"
                       className={cn(
                         "min-w-6 bg-surface-2 px-0.5 py-1.5 font-semibold tabular-nums text-muted sm:min-w-8 sm:px-1 sm:py-2",
                         wd === 6 && "text-subtle",
@@ -175,27 +177,26 @@ function Manpower() {
                     </th>
                   );
                 })}
-                <th className="bg-surface-2 px-1.5 py-1.5 font-semibold text-muted sm:px-2 sm:py-2">P</th>
-                <th className="bg-surface-2 px-1.5 py-1.5 font-semibold text-muted sm:px-2 sm:py-2">A</th>
+                <th scope="col" className="bg-surface-2 px-1.5 py-1.5 font-semibold text-muted sm:px-2 sm:py-2">P</th>
+                <th scope="col" className="bg-surface-2 px-1.5 py-1.5 font-semibold text-muted sm:px-2 sm:py-2">A</th>
               </tr>
             </thead>
             <tbody>
               {workers.map((w) => (
                 <tr key={w.id}>
-                  <td className="sticky left-0 bg-surface px-2 py-0.5 text-left text-[11px] font-medium sm:px-3 sm:py-1 sm:text-xs">
+                  <th scope="row" className="sticky left-0 bg-surface px-2 py-0.5 text-left text-[11px] font-medium sm:px-3 sm:py-1 sm:text-xs">
                     {w.name}
-                  </td>
+                  </th>
                   {days.map((d) => {
                     const m = map[key(w.id, d)] ?? "";
                     return (
-                      <td key={d} className="p-0.5">
+                      <td key={d} aria-label={`${w.name} day ${d} ${m || "blank"}`} className="p-0.5">
                         <span
                           className={cn(
                             "flex h-6 w-full items-center justify-center rounded-xs font-medium sm:h-8",
                             TONE[m],
                             d === today.day && "ring-1 ring-ink/30",
                           )}
-                          aria-label={`${w.name} day ${d} ${m || "blank"}`}
                         >
                           {m || "·"}
                         </span>

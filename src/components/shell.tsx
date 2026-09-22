@@ -2,6 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import {
   Building2,
   Camera,
+  ClipboardList,
   FileSpreadsheet,
   Grid3x3,
   HardHat,
@@ -12,10 +13,12 @@ import {
   Truck,
   X,
 } from "lucide-react";
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/lib/store";
-import { GroqAssistant } from "@/components/groq-assistant";
+import { ExportDataButton } from "@/components/operations-tools";
+
+const GroqAssistant = lazy(() => import("@/components/groq-assistant").then((module) => ({ default: module.GroqAssistant })));
 
 const NAV = [
   { to: "/", label: "Overview", icon: LayoutDashboard },
@@ -28,6 +31,7 @@ const NAV = [
   { to: "/manpower", label: "Attendance", icon: HardHat },
   { to: "/boq", label: "BOQ", icon: FileSpreadsheet },
   { to: "/po-log", label: "PO log", icon: Truck },
+  { to: "/activity", label: "Activity", icon: ClipboardList },
 ] as const;
 
 export function Shell({ children }: { children: React.ReactNode }) {
@@ -37,6 +41,12 @@ export function Shell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-dvh">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:rounded-md focus:bg-ink focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-accent-fg focus:outline-none focus:ring-2 focus:ring-accent"
+      >
+        Skip to main content
+      </a>
       <header className="sticky top-0 z-40 border-b border-border/80 bg-surface/85 backdrop-blur-xl supports-[backdrop-filter]:bg-surface/75">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-2.5 sm:px-6 sm:py-3">
           <Link to="/" className="flex min-w-0 items-center gap-2.5 sm:gap-3">
@@ -63,13 +73,18 @@ export function Shell({ children }: { children: React.ReactNode }) {
             </span>
           </div>
           <div className="flex items-center gap-2">
+            <div className="hidden sm:block">
+              <ExportDataButton />
+            </div>
             <button
               type="button"
-              className="inline-flex size-10 items-center justify-center rounded-xl border border-border bg-surface transition-all active:scale-95 md:hidden"
+              className="inline-flex size-10 items-center justify-center rounded-xl border border-border bg-surface transition-[transform,background-color] hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent active:scale-95 md:hidden"
               aria-label={open ? "Close menu" : "Open menu"}
+              aria-expanded={open}
+              aria-controls="mobile-navigation"
               onClick={() => setOpen((v) => !v)}
             >
-              {open ? <X className="size-5" /> : <Menu className="size-5" />}
+              {open ? <X className="size-5" aria-hidden="true" /> : <Menu className="size-5" aria-hidden="true" />}
             </button>
           </div>
         </div>
@@ -82,20 +97,20 @@ export function Shell({ children }: { children: React.ReactNode }) {
                 key={item.to}
                 to={item.to}
                 className={cn(
-                  "inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-200",
+                  "inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-[background-color,color,box-shadow] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
                   active
                     ? "bg-ink text-accent-fg shadow-sm"
                     : "text-muted hover:bg-surface-2 hover:text-fg",
                 )}
               >
-                <Icon className="size-4 opacity-90" />
+                <Icon className="size-4 opacity-90" aria-hidden="true" />
                 {item.label}
               </Link>
             );
           })}
         </nav>
         {open ? (
-          <nav className="anim-fade grid gap-1 border-t border-border px-3 py-2 md:hidden">
+          <nav id="mobile-navigation" className="anim-fade grid gap-1 border-t border-border px-3 py-2 md:hidden" aria-label="Mobile navigation">
             {NAV.map((item) => {
               const active = pathname === item.to;
               const Icon = item.icon;
@@ -109,16 +124,21 @@ export function Shell({ children }: { children: React.ReactNode }) {
                     active ? "bg-ink text-accent-fg" : "text-fg hover:bg-surface-2",
                   )}
                 >
-                  <Icon className="size-4" />
+                  <Icon className="size-4" aria-hidden="true" />
                   {item.label}
                 </Link>
               );
             })}
+            <div className="mt-1 border-t border-border pt-2">
+              <ExportDataButton />
+            </div>
           </nav>
         ) : null}
       </header>
-      <main className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-8">{children}</main>
-      <GroqAssistant />
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-7xl scroll-mt-24 px-4 py-5 sm:px-6 sm:py-8">
+        {children}
+      </main>
+      <Suspense fallback={null}><GroqAssistant /></Suspense>
     </div>
   );
 }
