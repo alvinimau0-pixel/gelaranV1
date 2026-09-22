@@ -95,8 +95,9 @@ function createNeonSql(): Promise<Sql> {
     types.setTypeParser(OID_INT8, Number);
     types.setTypeParser(OID_DATE, identity);
     types.setTypeParser(OID_INTERVAL, identity);
+    const connectionString = databaseUrl.replace(/([?&])sslmode=(prefer|require|verify-ca)(?=&|$)/gi, "$1sslmode=verify-full");
     const pool = new Pool({
-      connectionString: databaseUrl,
+      connectionString,
       max: 5,
       connectionTimeoutMillis: 15_000,
       ssl: databaseUrl.includes("sslmode=") ? undefined : { rejectUnauthorized: false },

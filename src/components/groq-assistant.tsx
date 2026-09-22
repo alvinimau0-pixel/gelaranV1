@@ -135,5 +135,3 @@ export function GroqAssistant() {
     </>
   );
 }
-
-export { parseAttendance } from "@/lib/apply-command";

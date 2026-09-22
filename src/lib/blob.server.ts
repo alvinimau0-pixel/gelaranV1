@@ -43,7 +43,8 @@ export async function uploadBase64Image(
   // fallback is bounded by the same 8MB cap and is stored in the existing
   // text URL column. Once BLOB_READ_WRITE_TOKEN is available, new uploads use
   // Blob automatically without any code or data migration.
-  if (!process.env.BLOB_READ_WRITE_TOKEN?.trim()) {
+  const blobIsPublic = process.env.BLOB_STORE_ACCESS?.trim().toLowerCase() === "public";
+  if (!process.env.BLOB_READ_WRITE_TOKEN?.trim() || !blobIsPublic) {
     return {
       url: `data:${contentType};base64,${base64Data}`,
       pathname: `${folder}/inline-${Date.now()}`,
