@@ -23,6 +23,12 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
   const items = itemsForPackage(pkg);
   const levels = report.progression.A.map((r) => r.level);
   const towers: ("A" | "B")[] = tower ? [tower] : ["A", "B"];
+  const overallFor = (item: string) => {
+    const values = towers.flatMap((t) => levels.map((level) => report.progression[t].find((r) => r.level === level)?.items[item] ?? null)).filter(
+      (value): value is number => value != null,
+    );
+    return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
+  };
 
   const detail = sel
     ? {
@@ -135,6 +141,16 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
                 }),
               )}
             </tbody>
+            <tfoot>
+              <tr>
+                <th className="sticky left-0 z-10 bg-ink px-1.5 py-2 text-center text-[10px] font-bold uppercase tracking-wide text-white">Overall</th>
+                {tower ? null : <th className="bg-ink px-1 py-2 text-center text-[10px] font-bold text-white">—</th>}
+                {items.map((item) => {
+                  const value = overallFor(item);
+                  return <td key={item} className="bg-ink px-0.5 py-2 text-center font-mono text-[10px] font-bold tabular-nums text-white">{value == null ? "—" : `${Math.round(value * 100)}%`}</td>;
+                })}
+              </tr>
+            </tfoot>
           </table>
         </div>
 
@@ -174,6 +190,18 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
               );
             }),
           )}
+          <div className="rounded-xl bg-ink px-3 py-2.5 text-white">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-xs font-semibold uppercase tracking-wide">Overall matrix average</span>
+              <span className="font-mono text-sm font-bold tabular-nums">{Math.round((items.map(overallFor).filter((value): value is number => value != null).reduce((sum, value) => sum + value, 0) / Math.max(1, items.map(overallFor).filter((value): value is number => value != null).length)) * 100)}%</span>
+            </div>
+            <div className="flex gap-1 overflow-hidden rounded-full bg-white/15">
+              {items.map((item) => {
+                const value = overallFor(item);
+                return value == null ? null : <span key={item} className={cn("h-2 flex-1", cellTone(value).split(" ")[0])} title={`${ITEM_META[item]?.short ?? item}: ${Math.round(value * 100)}%`} />;
+              })}
+            </div>
+          </div>
         </div>
       </Card>
 
