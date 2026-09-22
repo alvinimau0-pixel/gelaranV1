@@ -99,7 +99,7 @@ export const report: {
     "coldWater": 0.4760714285714284,
     "sanitary": 0.4702499999999998,
     "irrigation": 0.06125,
-    "men": 23,
+    "men": 27,
     "dayRm": 15900,
     "weather": "Fair",
     "shift": "8:00 am – 10:00 pm",
@@ -2408,7 +2408,7 @@ export const report: {
   "dailyReport": {
     "date": "22 SEPTEMBER 2026",
     "project": "MSK",
-    "totalWorkers": 23,
+    "totalWorkers": 27,
     "workHours": {
       "start": "8:00 am",
       "finish": "10:00 pm"
@@ -2417,76 +2417,89 @@ export const report: {
       {
         "name": "APOON",
         "scope": "UPVC and sanitary wares",
-        "workers": 6
+        "workers": 8
+      },
+      {
+        "name": "GREENSIMEX",
+        "scope": "Irrigation wiring",
+        "workers": 4
       },
       {
         "name": "ARIYAN",
         "scope": "Stainless steel",
         "workers": 3
-      },
-      {
-        "name": "GREENSIMEX",
-        "scope": "Irrigation wiring",
-        "workers": 2
       }
     ],
     "activities": [
-      {
-        "level": "31",
-        "tower": "A",
-        "scope": "Pipe sleeve and water tank pipe installation / flushing tank",
-        "workers": "Suhairi, Supendi, Supaham, Lihin, Eyasin, Asgar, Rana, Asraful"
-      },
-      {
-        "level": "26",
-        "scope": "Relocation of UPVC pipe and fittings",
-        "workers": "Apoon workers"
-      },
-      {
-        "level": "24",
-        "tower": "B",
-        "scope": "UPVC pipe for tenant",
-        "workers": "Apoon · 2 workers"
-      },
-      {
-        "level": "23",
-        "scope": "Concealed pipe installation inside toilet",
-        "workers": "Bilal, Nazmul, Mahmud, Nurul Islam, Sofikul, Farhad"
-      },
-      {
-        "level": "19",
-        "scope": "Back shaft toilet",
-        "workers": "Sarif, Hasan"
-      },
-      {
-        "level": "14",
-        "scope": "Irrigation pipe installation",
-        "workers": "Jewel, Badol, Emon"
-      },
-      {
-        "tower": "B",
-        "scope": "Wiring for solenoid valve",
-        "workers": "Greensimex · 2 workers"
-      },
       {
         "tower": "A",
         "scope": "Stainless steel pipe for pump",
         "workers": "Ariyan · 3 workers"
       },
       {
-        "level": "15",
-        "scope": "Installation of sanitary wares",
+        "tower": "B",
+        "scope": "Wiring for solenoid valve",
+        "workers": "Greensimex · 4 workers"
+      },
+      {
+        "level": "31",
+        "scope": "Pipe sleeve",
+        "workers": "Suhairi, Supendi"
+      },
+      {
+        "level": "28",
+        "scope": "UPVC pipe for toilet",
         "workers": "Apoon · 4 workers"
       },
       {
-        "level": "1",
-        "scope": "Tenant outlet installation of PP pipe",
-        "workers": "Jillur, Islam"
+        "level": "23",
+        "scope": "Concealed pipe inside toilet",
+        "workers": "Bilal, Nazmul, Mahmud, Nurul Islam, Sofikul, Farhad"
+      },
+      {
+        "level": "13",
+        "scope": "Coring",
+        "workers": "Supaham, Jiarul, Eyasin"
+      },
+      {
+        "level": "22",
+        "scope": "Installation of sanitary wares",
+        "workers": "Asgar, Rana, Damil"
+      },
+      {
+        "level": "18",
+        "scope": "AHU pipe",
+        "workers": "Emon, Nazmul"
+      },
+      {
+        "level": "17",
+        "scope": "Back shaft toilet",
+        "workers": "Sarif, new guy"
+      },
+      {
+        "level": "14",
+        "scope": "Irrigation pipe",
+        "workers": "Jewel, Badol"
+      },
+      {
+        "level": "14",
+        "scope": "Sanitary wares",
+        "workers": "Apoon · 4 workers"
+      },
+      {
+        "level": "13M1",
+        "scope": "PPR & PVC pipe",
+        "workers": "Lihin, Asraful"
       },
       {
         "level": "7",
-        "scope": "Floor grating installation",
+        "scope": "Floor grating",
         "workers": "Jamil"
+      },
+      {
+        "level": "LG",
+        "scope": "UPVC pipe",
+        "workers": "Jillur, Islam"
       },
       {
         "scope": "Housekeeping",
