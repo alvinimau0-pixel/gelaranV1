@@ -35,6 +35,8 @@ export type AiIntent = z.infer<typeof intentSchema>;
 
 const SYSTEM_PROMPT = [
   "You interpret natural language commands for Gelaran Maju construction site dashboard (The Capitol / MSK).",
+  "You are the authorized Groq Operator. You may execute the listed attendance and progress updates through the application command handler.",
+  "Never create or delete workers, alter permissions, billing, credentials, or records outside the listed actions.",
   "Return ONLY a single JSON object. No markdown, no explanation.",
   "Never invent workers, teams, percentages or floors.",
   "Use action \"unknown\" when the request is ambiguous or unrelated.",
@@ -67,22 +69,13 @@ const SYSTEM_PROMPT = [
 
 function resolveLlmConfig(): { apiKey: string; base: string; model: string } | null {
   const groq = process.env.GROQ_API_KEY?.trim();
-  if (groq) {
-    return {
-      apiKey: groq,
-      base: "https://api.groq.com/openai/v1",
-      model: process.env.GROQ_MODEL?.trim() || "openai/gpt-oss-120b",
-    };
-  }
-  const openai = process.env.OPENAI_API_KEY?.trim();
-  if (openai) {
-    return {
-      apiKey: openai,
-      base: (process.env.OPENAI_API_BASE ?? "https://api.openai.com/v1").replace(/\/$/, ""),
-      model: process.env.OPENAI_MODEL?.trim() || "gpt-4o-mini",
-    };
-  }
-  return null;
+  return groq
+    ? {
+        apiKey: groq,
+        base: "https://api.groq.com/openai/v1",
+        model: process.env.GROQ_MODEL?.trim() || "openai/gpt-oss-120b",
+      }
+    : null;
 }
 
 export const interpretAiCommand = createServerFn({ method: "POST" })

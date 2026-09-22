@@ -91,7 +91,7 @@ function Manpower() {
       <div>
         <h1 className="font-display text-2xl font-semibold sm:text-3xl">Attendance</h1>
         <p className="mt-1 text-xs text-muted sm:text-sm">
-          {today.iso} (Malaysia time) · Use AI assistant to mark attendance.
+          {today.iso} (Malaysia time) · Use Groq Operator to mark attendance.
         </p>
       </div>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
@@ -103,7 +103,7 @@ function Manpower() {
 
       <Card>
         <h2 className="mb-3 font-display text-base font-semibold sm:mb-4 sm:text-lg">Worker directory</h2>
-        <p className="mb-3 text-xs text-muted">Attendance changes via AI assistant.</p>
+        <p className="mb-3 text-xs text-muted">Attendance changes are authorized through Groq Operator.</p>
         <div className="grid gap-2 sm:grid-cols-2 sm:gap-3 lg:grid-cols-3">
           {workers.map((w) => {
             const mark = map[key(w.id, today.day)] ?? "";

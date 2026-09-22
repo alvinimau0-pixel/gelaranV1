@@ -21,12 +21,12 @@ function friendlyError(error: unknown): string {
   return raw || "Please try again.";
 }
 
-export function AiAssistant() {
+export function GroqAssistant() {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [msgs, setMsgs] = useState<Msg[]>([
-    { role: "assistant", text: "How can I help?" },
+    { role: "assistant", text: "Groq Operator ready. I can update attendance and progress, or report the current status." },
   ]);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -62,7 +62,7 @@ export function AiAssistant() {
         type="button"
         onClick={() => setOpen((v) => !v)}
         className="fixed bottom-4 right-4 z-50 inline-flex size-14 items-center justify-center rounded-full bg-ink text-accent-fg shadow-lg transition hover:scale-105 active:scale-95 sm:bottom-6 sm:right-6"
-        aria-label={open ? "Close AI assistant" : "Open AI assistant"}
+        aria-label={open ? "Close Groq operator" : "Open Groq operator"}
       >
         {open ? <X className="size-5" /> : <Sparkles className="size-5" />}
       </button>
@@ -70,7 +70,7 @@ export function AiAssistant() {
         <div className="fixed bottom-20 right-4 z-50 flex w-[min(100vw-2rem,24rem)] flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl sm:bottom-24 sm:right-6">
           <div className="flex items-center gap-2 border-b border-border px-3 py-2.5">
             <Bot className="size-4 text-accent" />
-            <p className="flex-1 text-sm font-semibold">Site assistant</p>
+            <p className="flex-1 text-sm font-semibold">Groq Operator</p>
             <button type="button" className="rounded-md p-1 text-muted hover:bg-surface-2" onClick={() => setOpen(false)} aria-label="Close">
               <X className="size-4" />
             </button>
@@ -92,7 +92,7 @@ export function AiAssistant() {
             {busy ? (
               <div className="flex items-center gap-2 rounded-xl bg-surface-2 px-3 py-2 text-muted">
                 <Check className="size-3 animate-pulse" />
-                Working on it…
+                Groq is processing…
               </div>
             ) : null}
             <div ref={bottomRef} />
@@ -118,14 +118,14 @@ export function AiAssistant() {
               onKeyDown={(event) => event.key === "Enter" && void send()}
               placeholder="Type a command…"
               className="min-w-0 flex-1 rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm outline-none focus:border-accent"
-              aria-label="AI assistant command"
+              aria-label="Groq operator command"
             />
             <button
               type="button"
               disabled={busy}
               onClick={() => void send()}
               className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg bg-ink text-accent-fg disabled:opacity-50"
-              aria-label="Send command to AI assistant"
+              aria-label="Send command to Groq operator"
             >
               <Send className="size-4" />
             </button>

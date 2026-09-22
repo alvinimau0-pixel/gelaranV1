@@ -15,7 +15,7 @@ import {
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/lib/store";
-import { AiAssistant } from "@/components/ai-assistant";
+import { GroqAssistant } from "@/components/groq-assistant";
 
 const NAV = [
   { to: "/", label: "Overview", icon: LayoutDashboard },
@@ -118,7 +118,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
         ) : null}
       </header>
       <main className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-8">{children}</main>
-      <AiAssistant />
+      <GroqAssistant />
     </div>
   );
 }
