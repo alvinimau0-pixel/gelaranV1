@@ -2,18 +2,18 @@ import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { X } from "lucide-react";
 import { useAppStore } from "@/lib/store";
-import { ITEM_META, PACKAGES, cellTone, itemsForPackage, relatedMaterial } from "@/lib/mep";
+import { ITEM_META, PACKAGES, cellTone, itemsForPackage, normalizeProgress, relatedMaterial, validateProgression } from "@/lib/mep";
 import { Badge, Card, Meter } from "@/components/ui";
 import { cn, pct } from "@/lib/utils";
 
 type Sel = { tower: "A" | "B"; level: string; item: string };
 
 const LEGEND = [
-  { label: "Complete", className: "bg-emerald-500" },
-  { label: "In progress", className: "bg-blue-500" },
-  { label: "Started", className: "bg-amber-400" },
-  { label: "Not started", className: "bg-red-500" },
-  { label: "N/A", className: "bg-slate-200" },
+  { label: "Complete", range: "90–100%", className: "bg-emerald-500" },
+  { label: "In progress", range: "50–89%", className: "bg-blue-600" },
+  { label: "Started", range: "1–49%", className: "bg-amber-400" },
+  { label: "Not started", range: "0%", className: "bg-red-500" },
+  { label: "N/A", range: "—", className: "bg-slate-200 ring-1 ring-inset ring-slate-300" },
 ];
 
 export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
@@ -23,6 +23,7 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
   const items = itemsForPackage(pkg);
   const levels = report.progression.A.map((r) => r.level);
   const towers: ("A" | "B")[] = tower ? [tower] : ["A", "B"];
+  const validationIssues = validateProgression(report.progression, items);
   const overallFor = (item: string) => {
     const values = towers.flatMap((t) => levels.map((level) => report.progression[t].find((r) => r.level === level)?.items[item] ?? null)).filter(
       (value): value is number => value != null,
@@ -61,18 +62,24 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
       </div>
 
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-border bg-surface px-3 py-2 text-[11px] text-muted sm:text-xs">
+        <span className="font-semibold text-fg">Color validation</span>
+        <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 font-semibold", validationIssues.length ? "bg-bad-bg text-bad" : "bg-ok-bg text-ok")}>
+          <span className={cn("size-2 rounded-full", validationIssues.length ? "bg-bad" : "bg-ok")} aria-hidden="true" />
+          {validationIssues.length ? `${validationIssues.length} invalid cells` : "All cells valid"}
+        </span>
+        <span className="h-4 w-px bg-border" aria-hidden="true" />
         <span className="font-semibold text-fg">Progress key</span>
         {LEGEND.map((entry) => (
-          <span key={entry.label} className="inline-flex items-center gap-1.5 whitespace-nowrap">
+          <span key={entry.label} className="inline-flex items-center gap-1.5 whitespace-nowrap" title={`${entry.label}: ${entry.range}`}>
             <span className={cn("size-2.5 rounded-full shadow-sm", entry.className)} aria-hidden="true" />
-            {entry.label}
+            <span>{entry.label} <span className="text-subtle">({entry.range})</span></span>
           </span>
         ))}
       </div>
 
       <Card className="p-0">
         <div className="hidden overflow-hidden md:block">
-          <table className="table-clear w-full table-fixed border-collapse text-left text-[10px] lg:text-[11px]">
+          <table className="table-clear w-full table-fixed border-collapse text-left text-[10px] lg:text-[11px]" aria-label="MEP progress matrix">
             <colgroup>
               <col className="w-10" />
               {!tower ? <col className="w-8" /> : null}
@@ -92,7 +99,7 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
                   <th
                     key={item}
                     title={item}
-                    className="border-b border-border bg-surface-2 px-0.5 py-2 text-center font-semibold leading-tight text-fg"
+                    className="border-b border-l border-border bg-surface-2 px-0.5 py-2 text-center font-semibold leading-tight text-fg"
                   >
                     <span className="block truncate px-0.5">{ITEM_META[item]?.short ?? item}</span>
                   </th>
@@ -117,7 +124,8 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
                         <td className="border-b border-border px-1 py-1 text-center font-semibold text-muted">{t}</td>
                       )}
                       {items.map((item) => {
-                        const v = row?.items[item] ?? null;
+                        const raw = row?.items[item] ?? null;
+                        const v = normalizeProgress(raw);
                         const active = sel?.level === level && sel.item === item && sel.tower === t;
                         return (
                           <td key={item} className="border-b border-border p-0.5">
@@ -129,7 +137,8 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
                                 cellTone(v),
                                 active && "ring-2 ring-ink ring-offset-1",
                               )}
-                              aria-label={`Tower ${t} level ${level} ${item}`}
+                              aria-label={`Tower ${t} level ${level} ${item}: ${v == null ? "not applicable" : `${Math.round(v * 100)} percent`}`}
+                              title={`${ITEM_META[item]?.short ?? item}: ${v == null ? "N/A" : `${Math.round(v * 100)}%`}`}
                             >
                               {v == null ? "—" : `${Math.round(v * 100)}`}
                             </button>
@@ -166,7 +175,7 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
                   </div>
                   <div className="grid grid-cols-2 gap-1.5">
                     {items.map((item) => {
-                      const v = row?.items[item] ?? null;
+                      const v = normalizeProgress(row?.items[item] ?? null);
                       const active = sel?.level === level && sel.item === item && sel.tower === t;
                       return (
                         <button
@@ -178,7 +187,7 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
                             cellTone(v),
                             active && "ring-2 ring-ink ring-offset-1",
                           )}
-                          aria-label={`Tower ${t} level ${level} ${item}`}
+                          aria-label={`Tower ${t} level ${level} ${item}: ${v == null ? "not applicable" : `${Math.round(v * 100)} percent`}`}
                         >
                           <span className="min-w-0 truncate text-[11px] font-semibold leading-tight">{ITEM_META[item]?.short ?? item}</span>
                           <span className="shrink-0 font-mono text-sm font-bold tabular-nums">{v == null ? "—" : `${Math.round(v * 100)}%`}</span>

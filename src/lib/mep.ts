@@ -109,12 +109,49 @@ export function itemsForPackage(pkg: (typeof PACKAGES)[number]) {
   return report.items.filter((i) => ITEM_META[i]?.package === pkg);
 }
 
+export type ProgressState = "complete" | "inProgress" | "started" | "notStarted" | "na";
+
+export function normalizeProgress(v: number | null | undefined) {
+  if (v == null || !Number.isFinite(v)) return null;
+  return Math.max(0, Math.min(1, v));
+}
+
+export function progressState(v: number | null | undefined): ProgressState {
+  const value = normalizeProgress(v);
+  if (value == null) return "na";
+  if (value >= 0.9) return "complete";
+  if (value >= 0.5) return "inProgress";
+  if (value > 0) return "started";
+  return "notStarted";
+}
+
 export function cellTone(v: number | null | undefined) {
-  if (v == null) return "bg-slate-100 text-slate-500 ring-1 ring-inset ring-slate-200";
-  if (v >= 0.9) return "bg-emerald-500 text-white shadow-sm";
-  if (v >= 0.5) return "bg-blue-500 text-white shadow-sm";
-  if (v > 0) return "bg-amber-400 text-amber-950 shadow-sm";
-  return "bg-red-500 text-white shadow-sm";
+  switch (progressState(v)) {
+    case "complete":
+      return "bg-emerald-500 text-white shadow-sm";
+    case "inProgress":
+      return "bg-blue-600 text-white shadow-sm";
+    case "started":
+      return "bg-amber-400 text-amber-950 shadow-sm";
+    case "notStarted":
+      return "bg-red-500 text-white shadow-sm";
+    default:
+      return "bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-300";
+  }
+}
+
+export function validateProgression(progression: ProgressionLike, items: string[]) {
+  const issues: string[] = [];
+  for (const tower of ["A", "B"] as const) {
+    for (const row of progression[tower]) {
+      for (const item of items) {
+        const value = row.items[item];
+        if (value != null && !Number.isFinite(value)) issues.push(`${tower}-${row.level}-${item}: invalid number`);
+        else if (value != null && (value < 0 || value > 1)) issues.push(`${tower}-${row.level}-${item}: outside 0–100%`);
+      }
+    }
+  }
+  return issues;
 }
 
 export function relatedMaterial(item: string) {
