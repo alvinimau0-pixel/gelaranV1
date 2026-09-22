@@ -151,21 +151,16 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
       </div>
 
       <Card className="p-0">
-        <div className="hidden overflow-hidden md:block">
-          <table className="table-clear w-full table-fixed border-collapse text-left text-[10px] lg:text-[11px]" aria-label="MEP progress matrix">
-            <colgroup>
-              <col className="w-10" />
-              {view === "both" ? <col className="w-8" /> : null}
-              {items.map((item) => <col key={item} />)}
-            </colgroup>
+        <div className="hidden overflow-x-auto md:block">
+          <table className="table-clear w-full min-w-[1100px] border-collapse text-left text-[10px] lg:text-[11px]" aria-label="MEP progress matrix">
             <thead>
               <tr>
                 <th scope="col" className="sticky left-0 z-20 border-b border-border bg-surface-2 px-1.5 py-2 text-center font-semibold uppercase tracking-wide text-fg">
-                  Lvl
+                  Level
                 </th>
                 {view !== "both" ? null : (
                   <th scope="col" className="border-b border-border bg-surface-2 px-1 py-2 text-center font-semibold uppercase tracking-wide text-fg">
-                    T
+                    Tower
                   </th>
                 )}
                 {items.map((item) => (
@@ -173,9 +168,9 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
                     key={item}
                     scope="col"
                     title={item}
-                    className="border-b border-l border-border bg-surface-2 px-0.5 py-2 text-center font-semibold leading-tight text-fg"
+                    className="border-b border-l border-border bg-surface-2 px-1 py-2 text-center font-semibold leading-tight text-fg"
                   >
-                    <span className="block truncate px-0.5">{ITEM_META[item]?.short ?? item}</span>
+                    <span className="block max-w-[5.5rem] whitespace-normal px-0.5 text-[9px] lg:max-w-[6.5rem] lg:text-[10px]">{item}</span>
                   </th>
                 ))}
               </tr>
@@ -216,7 +211,7 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
                                 active && "ring-2 ring-ink ring-offset-1",
                               )}
                               aria-label={`Tower ${t} level ${level} ${item}: ${v == null ? "not applicable" : `${Math.round(v * 100)} percent`}`}
-                              title={`${ITEM_META[item]?.short ?? item}: ${v == null ? "N/A" : `${Math.round(v * 100)}%`}`}
+                              title={`${item}: ${v == null ? "N/A" : `${Math.round(v * 100)}%`}`}
                             >
                               {v == null ? "—" : `${Math.round(v * 100)}`}
                             </button>
@@ -231,7 +226,7 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
             <tfoot>
               <tr>
                 <th scope="row" className="sticky left-0 z-10 bg-ink px-1.5 py-2 text-center text-[10px] font-bold uppercase tracking-wide text-white">Overall</th>
-                {tower ? null : <th scope="col" className="bg-ink px-1 py-2 text-center text-[10px] font-bold text-white">—</th>}
+                {view === "both" ? <th scope="col" className="bg-ink px-1 py-2 text-center text-[10px] font-bold text-white">—</th> : null}
                 {items.map((item) => {
                   const value = overallFor(item);
                   return <td key={item} className="bg-ink px-0.5 py-2 text-center font-mono text-[10px] font-bold tabular-nums text-white">{value == null ? "—" : `${Math.round(value * 100)}%`}</td>;
@@ -251,7 +246,7 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
                     <span className="font-display text-sm font-semibold text-fg">Level {level}</span>
                     {view === "both" ? <span className="rounded-full bg-ink px-2 py-0.5 text-[10px] font-semibold text-accent-fg">Tower {t}</span> : <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[10px] font-semibold text-accent">Tower {t}</span>}
                   </div>
-                  <div className="grid grid-cols-2 gap-1.5">
+                  <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
                     {items.map((item) => {
                       const v = normalizeProgress(row?.items[item] ?? null);
                       const active = sel?.level === level && sel.item === item && sel.tower === t;
@@ -270,7 +265,7 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
                           )}
                           aria-label={`Tower ${t} level ${level} ${item}: ${v == null ? "not applicable" : `${Math.round(v * 100)} percent`}`}
                         >
-                          <span className="min-w-0 truncate text-[11px] font-semibold leading-tight">{ITEM_META[item]?.short ?? item}</span>
+                          <span className="min-w-0 text-[11px] font-semibold leading-tight">{item}</span>
                           <span className="shrink-0 font-mono text-sm font-bold tabular-nums">{v == null ? "—" : `${Math.round(v * 100)}%`}</span>
                         </button>
                       );
@@ -280,18 +275,6 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
               );
             }),
           )}
-          <div className="rounded-xl bg-ink px-3 py-2.5 text-white">
-            <div className="mb-2 flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wide">Overall matrix average</span>
-              <span className="font-mono text-sm font-bold tabular-nums">{Math.round((items.map(overallFor).filter((value): value is number => value != null).reduce((sum, value) => sum + value, 0) / Math.max(1, items.map(overallFor).filter((value): value is number => value != null).length)) * 100)}%</span>
-            </div>
-            <div className="flex gap-1 overflow-hidden rounded-full bg-white/15">
-              {items.map((item) => {
-                const value = overallFor(item);
-                return value == null ? null : <span key={item} className={cn("h-2 flex-1", cellTone(value).split(" ")[0])} title={`${ITEM_META[item]?.short ?? item}: ${Math.round(value * 100)}%`} />;
-              })}
-            </div>
-          </div>
         </div>
       </Card>
 
