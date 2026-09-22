@@ -110,11 +110,11 @@ export function itemsForPackage(pkg: (typeof PACKAGES)[number]) {
 }
 
 export function cellTone(v: number | null | undefined) {
-  if (v == null) return "bg-surface-2 text-subtle";
-  if (v >= 0.9) return "bg-ok-bg text-ok";
-  if (v >= 0.5) return "bg-accent/15 text-ink";
-  if (v > 0) return "bg-warn-bg text-warn";
-  return "bg-bad-bg text-bad";
+  if (v == null) return "bg-slate-100 text-slate-500 ring-1 ring-inset ring-slate-200";
+  if (v >= 0.9) return "bg-emerald-500 text-white shadow-sm";
+  if (v >= 0.5) return "bg-blue-500 text-white shadow-sm";
+  if (v > 0) return "bg-amber-400 text-amber-950 shadow-sm";
+  return "bg-red-500 text-white shadow-sm";
 }
 
 export function relatedMaterial(item: string) {

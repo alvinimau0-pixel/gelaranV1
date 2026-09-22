@@ -20,13 +20,13 @@ const progressionSchema = z.object({
   A: z.array(
     z.object({
       level: z.string(),
-      items: z.record(z.union([z.number(), z.null()])),
+      items: z.record(z.string(), z.union([z.number(), z.null()])),
     }),
   ),
   B: z.array(
     z.object({
       level: z.string(),
-      items: z.record(z.union([z.number(), z.null()])),
+      items: z.record(z.string(), z.union([z.number(), z.null()])),
     }),
   ),
 });
