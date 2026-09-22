@@ -2422,6 +2422,28 @@
         "scope": "Housekeeping",
         "workers": "Kalam"
       }
+    ],
+    "laborDistribution": [
+      {
+        "label": "APOON · UPVC & wares",
+        "workers": 8,
+        "color": "bg-blue-500"
+      },
+      {
+        "label": "GREENSIMEX · irrigation wiring",
+        "workers": 4,
+        "color": "bg-emerald-500"
+      },
+      {
+        "label": "ARIYAN · stainless steel",
+        "workers": 3,
+        "color": "bg-violet-500"
+      },
+      {
+        "label": "MSK direct / field team",
+        "workers": 12,
+        "color": "bg-amber-400"
+      }
     ]
   }
 }

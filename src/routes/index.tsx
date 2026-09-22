@@ -306,6 +306,28 @@ function Home() {
             </div>
           ))}
         </div>
+        <div className="mb-4 rounded-xl border border-border bg-surface-2/50 p-3">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <div>
+              <h3 className="text-sm font-semibold text-fg">Labor distribution</h3>
+              <p className="text-[11px] text-muted">Today’s 27 workers by crew</p>
+            </div>
+            <span className="font-mono text-sm font-bold tabular-nums text-fg">27 total</span>
+          </div>
+          <div className="space-y-2.5">
+            {report.dailyReport.laborDistribution.map((group) => (
+              <div key={group.label}>
+                <div className="mb-1 flex items-center justify-between gap-3 text-xs">
+                  <span className="min-w-0 truncate font-medium text-fg">{group.label}</span>
+                  <span className="shrink-0 font-mono font-bold tabular-nums text-muted">{group.workers} · {Math.round((group.workers / report.dailyReport.totalWorkers) * 100)}%</span>
+                </div>
+                <div className="h-2.5 overflow-hidden rounded-full bg-surface">
+                  <div className={cn("h-full rounded-full transition-all", group.color)} style={{ width: `${(group.workers / report.dailyReport.totalWorkers) * 100}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
         <div className="grid gap-2 sm:grid-cols-2">
           {report.dailyReport.activities.map((activity, index) => (
             <div key={`${activity.scope}-${index}`} className="flex gap-2.5 rounded-xl border border-border px-3 py-2.5">

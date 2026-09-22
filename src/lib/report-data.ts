@@ -6,6 +6,7 @@ export const report: {
     totalWorkers: number;
     workHours: { start: string; finish: string };
     subcontractors: { name: string; scope: string; workers: number }[];
+    laborDistribution: { label: string; workers: number; color: string }[];
     activities: { level?: string; tower?: "A" | "B"; scope: string; workers: string }[];
   };
   packages: { coldWater: number; sanitary: number; irrigation: number; overall: number };
@@ -2504,6 +2505,28 @@ export const report: {
       {
         "scope": "Housekeeping",
         "workers": "Kalam"
+      }
+    ],
+    "laborDistribution": [
+      {
+        "label": "APOON · UPVC & wares",
+        "workers": 8,
+        "color": "bg-blue-500"
+      },
+      {
+        "label": "GREENSIMEX · irrigation wiring",
+        "workers": 4,
+        "color": "bg-emerald-500"
+      },
+      {
+        "label": "ARIYAN · stainless steel",
+        "workers": 3,
+        "color": "bg-violet-500"
+      },
+      {
+        "label": "MSK direct / field team",
+        "workers": 12,
+        "color": "bg-amber-400"
       }
     ]
   }
