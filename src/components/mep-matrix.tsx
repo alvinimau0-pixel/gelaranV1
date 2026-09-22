@@ -20,9 +20,10 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
   const report = useAppStore((s) => s.report);
   const [pkg, setPkg] = useState<(typeof PACKAGES)[number]>("All");
   const [sel, setSel] = useState<Sel | null>(null);
+  const [view, setView] = useState<"both" | "A" | "B">(tower ?? "both");
   const items = itemsForPackage(pkg);
   const levels = report.progression.A.map((r) => r.level);
-  const towers: ("A" | "B")[] = tower ? [tower] : ["A", "B"];
+  const towers: ("A" | "B")[] = view === "both" ? ["A", "B"] : [view];
   const validationIssues = validateProgression(report.progression, items);
   const overallFor = (item: string) => {
     const values = towers.flatMap((t) => levels.map((level) => report.progression[t].find((r) => r.level === level)?.items[item] ?? null)).filter(
@@ -45,6 +46,39 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
 
   return (
     <div className="space-y-3">
+      {!tower ? (
+        <div className="rounded-xl border border-border bg-surface p-1 shadow-sm">
+          <div className="grid grid-cols-3 gap-1" role="tablist" aria-label="Matrix tower view">
+            {([
+              ["both", "Both towers", "A + B"],
+              ["A", "Tower A", "A only"],
+              ["B", "Tower B", "B only"],
+            ] as const).map(([value, label, hint]) => (
+              <button
+                key={value}
+                type="button"
+                role="tab"
+                aria-selected={view === value}
+                onClick={() => { setView(value); setSel(null); }}
+                className={cn(
+                  "min-h-12 rounded-lg px-2 py-2 text-left transition-all",
+                  view === value ? "bg-ink text-accent-fg shadow-sm" : "text-muted hover:bg-surface-2 hover:text-fg",
+                )}
+              >
+                <span className="block text-xs font-semibold sm:text-sm">{label}</span>
+                <span className={cn("mt-0.5 block text-[10px]", view === value ? "text-accent-fg/70" : "text-subtle")}>{hint}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+          Showing {view === "both" ? "both towers" : `Tower ${view}`} · {levels.length} levels
+        </p>
+      </div>
+
       <div className="flex flex-wrap gap-1.5">
         {PACKAGES.map((p) => (
           <button
@@ -82,7 +116,7 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
           <table className="table-clear w-full table-fixed border-collapse text-left text-[10px] lg:text-[11px]" aria-label="MEP progress matrix">
             <colgroup>
               <col className="w-10" />
-              {!tower ? <col className="w-8" /> : null}
+              {view === "both" ? <col className="w-8" /> : null}
               {items.map((item) => <col key={item} />)}
             </colgroup>
             <thead>
@@ -90,7 +124,7 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
                 <th className="sticky left-0 z-20 border-b border-border bg-surface-2 px-1.5 py-2 text-center font-semibold uppercase tracking-wide text-fg">
                   Lvl
                 </th>
-                {tower ? null : (
+                {view !== "both" ? null : (
                   <th className="border-b border-border bg-surface-2 px-1 py-2 text-center font-semibold uppercase tracking-wide text-fg">
                     T
                   </th>
@@ -120,7 +154,7 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
                           {level}
                         </td>
                       ) : null}
-                      {tower ? null : (
+                      {view !== "both" ? null : (
                         <td className="border-b border-border px-1 py-1 text-center font-semibold text-muted">{t}</td>
                       )}
                       {items.map((item) => {
@@ -171,7 +205,7 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
                 <section key={`${level}-${t}`} className="rounded-xl border border-border bg-surface-2/60 p-2">
                   <div className="mb-2 flex items-center justify-between px-1">
                     <span className="font-display text-sm font-semibold text-fg">Level {level}</span>
-                    {!tower ? <span className="rounded-full bg-ink px-2 py-0.5 text-[10px] font-semibold text-accent-fg">Tower {t}</span> : null}
+                    {view === "both" ? <span className="rounded-full bg-ink px-2 py-0.5 text-[10px] font-semibold text-accent-fg">Tower {t}</span> : <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[10px] font-semibold text-accent">Tower {t}</span>}
                   </div>
                   <div className="grid grid-cols-2 gap-1.5">
                     {items.map((item) => {
