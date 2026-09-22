@@ -4,6 +4,27 @@ import { report as initialReport } from "@/lib/report-data";
 
 type ReportData = typeof initialReport;
 
+function normalizeReport(input: unknown): ReportData {
+  const persisted = input && typeof input === "object" ? (input as Partial<ReportData>) : {};
+  const daily = persisted.dailyReport && typeof persisted.dailyReport === "object"
+    ? (persisted.dailyReport as Partial<ReportData["dailyReport"]>)
+    : {};
+  return {
+    ...structuredClone(initialReport),
+    ...persisted,
+    meta: { ...initialReport.meta, ...(persisted.meta ?? {}) },
+    site: { ...initialReport.site, ...(persisted.site ?? {}) },
+    dailyReport: {
+      ...initialReport.dailyReport,
+      ...daily,
+      workHours: { ...initialReport.dailyReport.workHours, ...(daily.workHours ?? {}) },
+      subcontractors: Array.isArray(daily.subcontractors) ? daily.subcontractors : initialReport.dailyReport.subcontractors,
+      laborDistribution: Array.isArray(daily.laborDistribution) ? daily.laborDistribution : initialReport.dailyReport.laborDistribution,
+      activities: Array.isArray(daily.activities) ? daily.activities : initialReport.dailyReport.activities,
+    },
+  };
+}
+
 type AppState = {
   report: ReportData;
   updateReport: (partial: Partial<ReportData>) => void;
@@ -18,15 +39,24 @@ type AppState = {
 export const useAppStore = create<AppState>()(
   persist(
     (set) => ({
-      report: structuredClone(initialReport),
+      report: normalizeReport(initialReport),
       updateReport: (partial) => set((s) => ({ report: { ...s.report, ...partial } })),
       updateSite: (partial) =>
         set((s) => ({ report: { ...s.report, site: { ...s.report.site, ...partial } } })),
       setReportField: (key, value) => set((s) => ({ report: { ...s.report, [key]: value } })),
-      resetReport: () => set({ report: structuredClone(initialReport) }),
+      resetReport: () => set({ report: normalizeReport(initialReport) }),
     }),
     {
       name: "gelaran-v1-app",
+      version: 2,
+      migrate: (persistedState) => {
+        const persisted = persistedState as { report?: unknown } | undefined;
+        return { report: normalizeReport(persisted?.report) };
+      },
+      merge: (persistedState, currentState) => {
+        const persisted = persistedState as { report?: unknown } | undefined;
+        return { ...currentState, ...(persistedState as object), report: normalizeReport(persisted?.report) };
+      },
       partialize: (s) => ({ report: s.report }),
     },
   ),
