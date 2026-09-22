@@ -3,6 +3,8 @@ import {
   setAttendanceByName,
   setAttendanceForTeam,
   listWorkers,
+  addWorker,
+  removeWorker,
   setAttendance,
   todayInKualaLumpur,
   type AttendanceStatus,
@@ -135,6 +137,17 @@ function parseAllAttendance(text: string): { status: AttendanceStatus; date: str
   };
 }
 
+function parseAddWorker(text: string): { name: string; trade?: string; team?: string; subcontractor?: string } | null {
+  const match = text.trim().match(/^add\s+(?:a\s+)?worker\s+["']?(.+?)["']?(?:,?\s+trade\s*[:=]\s*(.+?))?(?:,?\s+team\s*[:=]\s*(.+?))?(?:,?\s+subcontractor\s*[:=]\s*(.+?))?$/i);
+  if (!match) return null;
+  return { name: match[1].trim(), trade: match[2]?.trim(), team: match[3]?.trim(), subcontractor: match[4]?.trim() };
+}
+
+function parseRemoveWorker(text: string): string | null {
+  const match = text.trim().match(/^(?:remove|delete|deactivate)\s+(?:worker\s+)?["']?(.+?)["']?$/i);
+  return match?.[1]?.trim() || null;
+}
+
 function parseItemProgress(text: string): {
   item: string;
   tower: "A" | "B";
@@ -187,6 +200,13 @@ function intentToCommand(intent: AiIntent): string | null {
   if (intent.action === "update_manpower" && intent.value !== null) return `set on site to ${intent.value}`;
   if (intent.action === "update_weather" && intent.text) return `set weather to "${intent.text}"`;
   if (intent.action === "update_focus" && intent.text) return `set today focus to "${intent.text}"`;
+  if (intent.action === "add_worker" && intent.workerName) {
+    const details = [intent.trade ? `trade: ${intent.trade}` : null, intent.team ? `team: ${intent.team}` : null, intent.subcontractor ? `subcontractor: ${intent.subcontractor}` : null]
+      .filter(Boolean)
+      .join(", ");
+    return `add worker "${intent.workerName}"${details ? `, ${details}` : ""}`;
+  }
+  if (intent.action === "remove_worker" && intent.workerName) return `remove worker "${intent.workerName}"`;
   return null;
 }
 
@@ -215,6 +235,8 @@ export async function applyCommand(text: string, useAi = true): Promise<string> 
       "· set on site to 30",
       "· set weather to Fair",
       "· set today focus to transfer pump + hosereel",
+      "· add worker Rahim, trade: plumber, team: team 4, subcontractor: Apoon",
+      "· remove worker Rahim (soft-deactivates the worker)",
       "· status",
     ].join("\n");
   }
@@ -269,6 +291,28 @@ export async function applyCommand(text: string, useAi = true): Promise<string> 
       return `All good — marked **${count} workers** ${label} for ${allAtt.date === todayInKualaLumpur().iso ? "today" : allAtt.date}.`;
     } catch (error) {
       return `Couldn’t update everyone just now. ${sanitizeError(error)}`;
+    }
+  }
+
+  const add = parseAddWorker(text);
+  if (add) {
+    try {
+      const result = await addWorker({ data: add });
+      refreshAttendanceTable();
+      return `Added **${result.worker.name}** to the active worker directory${result.worker.team ? ` · ${result.worker.team}` : ""}.`;
+    } catch (error) {
+      return `Couldn’t add that worker. ${sanitizeError(error)}`;
+    }
+  }
+
+  const remove = parseRemoveWorker(text);
+  if (remove) {
+    try {
+      const result = await removeWorker({ data: { workerName: remove } });
+      refreshAttendanceTable();
+      return `Removed **${result.workerName}** from the active directory. Attendance history was preserved.`;
+    } catch (error) {
+      return `Couldn’t remove that worker. ${sanitizeError(error)}`;
     }
   }
 

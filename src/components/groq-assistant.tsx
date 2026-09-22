@@ -26,7 +26,7 @@ export function GroqAssistant() {
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [msgs, setMsgs] = useState<Msg[]>([
-    { role: "assistant", text: "Groq Operator ready. I can update attendance and progress, or report the current status." },
+    { role: "assistant", text: "Groq Operator ready. I can add or remove workers, update attendance and progress, or report the current status." },
   ]);
   const bottomRef = useRef<HTMLDivElement>(null);
 

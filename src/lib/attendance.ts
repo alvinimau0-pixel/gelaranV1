@@ -244,6 +244,69 @@ export const getAttendanceSummary = createServerFn({ method: "GET" })
     return summary;
   });
 
+export const addWorker = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      name: z.string().trim().min(2).max(100),
+      trade: z.string().trim().max(80).optional(),
+      team: z.string().trim().max(80).optional(),
+      subcontractor: z.string().trim().max(100).optional(),
+    }),
+  )
+  .handler(async ({ data }): Promise<{ ok: true; worker: Worker }> => {
+    await seedWorkersIfEmpty();
+    const sql = await getSql();
+    const [row] = await sql<{
+      id: number;
+      employee_code: string | null;
+      name: string;
+      trade: string | null;
+      team: string | null;
+      subcontractor: string | null;
+      phone: string | null;
+      photo_url: string | null;
+      active: boolean;
+    }>`
+      insert into workers (name, trade, team, subcontractor, active)
+      values (${data.name}, ${data.trade || null}, ${data.team || null}, ${data.subcontractor || null}, true)
+      on conflict (lower(name)) do update set
+        trade = coalesce(excluded.trade, workers.trade),
+        team = coalesce(excluded.team, workers.team),
+        subcontractor = coalesce(excluded.subcontractor, workers.subcontractor),
+        active = true,
+        updated_at = now()
+      returning id, employee_code, name, trade, team, subcontractor, phone, photo_url, active
+    `;
+    return {
+      ok: true,
+      worker: {
+        id: row.id,
+        employeeCode: row.employee_code,
+        name: row.name,
+        trade: row.trade,
+        team: row.team,
+        subcontractor: row.subcontractor,
+        phone: row.phone,
+        photoUrl: row.photo_url,
+        active: row.active,
+      },
+    };
+  });
+
+export const removeWorker = createServerFn({ method: "POST" })
+  .validator(z.object({ workerName: z.string().trim().min(2).max(100) }))
+  .handler(async ({ data }): Promise<{ ok: true; workerName: string }> => {
+    await seedWorkersIfEmpty();
+    const sql = await getSql();
+    const [worker] = await sql<{ id: number; name: string }>`
+      update workers set active = false, updated_at = now()
+      where active = true and lower(name) = lower(${data.workerName})
+      returning id, name
+    `;
+    if (!worker) throw new Error(`Active worker not found: ${data.workerName}`);
+    return { ok: true, workerName: worker.name };
+  });
+
 export const saveWorkerPhoto = createServerFn({ method: "POST" })
   .validator(
     z.object({
