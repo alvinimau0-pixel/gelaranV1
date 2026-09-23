@@ -17,7 +17,88 @@ const LEGEND = [
   { label: "N/A", range: "—", className: "bg-slate-200 ring-1 ring-inset ring-slate-300" },
 ];
 
+const REGISTER_LEVELS = ["13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "31M"] as const;
+const WORK_ITEM_REGISTER = [
+  ["Cold Water", "Coordination", "Incoming connection and meter", ""],
+  ["Cold Water", "Installation", "Storage tanks and break tank", ""],
+  ["Cold Water", "Installation", "Pumping main and distribution", ""],
+  ["Cold Water", "Installation", "Booster pump, VSD and controls", "77%"],
+  ["Cold Water", "Installation", "Valves, PRVs, gauges and backflow", ""],
+  ["Cold Water", "Testing", "Sleeves, supports and fire stopping", ""],
+  ["Cold Water", "Commissioning", "Flush, disinfect and sample", ""],
+  ["Flush Water", "Coordination", "Non-potable separation and labels", ""],
+  ["Flush Water", "Installation", "FW tanks and break-tank link", ""],
+  ["Flush Water", "Installation", "Booster pump and pressure tank", ""],
+  ["Flush Water", "Installation", "Pumping main and floor distribution", "-"],
+  ["Flush Water", "Installation", "Toilet flushing connections", ""],
+  ["Flush Water", "Commissioning", "Backflow, flow and commissioning", ""],
+  ["Sanitary", "Coordination", "Soil, waste and vent risers", ""],
+  ["Sanitary", "Installation", "Stacks and tenant branches", ""],
+  ["Sanitary", "Installation", "Toilet distribution and hacking", "37%"],
+  ["Sanitary", "Installation", "Floor traps, wastes and access", ""],
+  ["Sanitary", "Installation", "Fixtures and sanitary wares", ""],
+  ["Sanitary", "Testing", "Water, air and flow tests", ""],
+  ["Variation Orders", "Commercial", "Register instruction and affected scope", ""],
+  ["Variation Orders", "Coordination", "Revise tank and pipework drawings", ""],
+  ["Variation Orders", "Installation", "FRP tank changes and rerouting", "-"],
+  ["Variation Orders", "Installation", "Ladders, drains, overflows and sampling", ""],
+  ["Variation Orders", "Testing", "VO testing and technical acceptance", ""],
+  ["Variation Orders", "Commercial", "Measure, claim and close valuation", ""],
+  ["Variation Orders", "Installation", "Planter box (Irrigation)", ""],
+] as const;
+
+function WorkItemRegister() {
+  const [filter, setFilter] = useState("All");
+  const packages = ["All", "Cold Water", "Flush Water", "Sanitary", "Variation Orders"];
+  const rows = filter === "All" ? WORK_ITEM_REGISTER : WORK_ITEM_REGISTER.filter(([pkg]) => pkg === filter);
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap gap-1.5">
+        {packages.map((pkg) => (
+          <button key={pkg} type="button" onClick={() => setFilter(pkg)} className={cn("min-h-9 rounded-full px-3 text-xs font-medium sm:min-h-11 sm:px-4 sm:text-sm", filter === pkg ? "bg-ink text-accent-fg" : "bg-surface-2 text-muted hover:text-fg")}>
+            {pkg}
+          </button>
+        ))}
+      </div>
+      <Card className="p-0">
+        <div className="flex flex-wrap items-start justify-between gap-3 px-3 pb-3 pt-3 sm:px-4 sm:pt-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted">Work item register</p>
+            <h2 className="pt-1 font-display text-base font-semibold text-fg sm:text-lg">MEP work plan by level</h2>
+          </div>
+          <span className="rounded-full bg-accent/10 px-2.5 py-1 text-[10px] font-semibold text-accent">{rows.length} items</span>
+        </div>
+        <div className="overflow-x-auto border-t border-border">
+          <table className="w-full min-w-[1450px] border-collapse text-left text-[10px] lg:text-[11px]" aria-label="Work item register">
+            <thead>
+              <tr className="bg-surface-2 text-[9px] font-semibold uppercase tracking-wide text-muted">
+                <th scope="col" className="sticky left-0 z-10 min-w-32 border-r border-border bg-surface-2 px-3 py-2">Package</th>
+                <th scope="col" className="min-w-28 px-2 py-2">Stage</th>
+                <th scope="col" className="min-w-64 px-2 py-2">Work Item</th>
+                {REGISTER_LEVELS.map((level) => <th key={level} scope="col" className="min-w-12 border-l border-border px-2 py-2 text-center">{level}</th>)}
+                <th scope="col" className="min-w-20 border-l border-border px-2 py-2 text-right">Progress</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(([pkg, stage, workItem, progress], index) => (
+                <tr key={`${pkg}-${workItem}`} className="border-t border-border/70">
+                  <th scope="row" className="sticky left-0 z-[1] border-r border-border bg-surface px-3 py-2 font-semibold text-fg">{pkg}</th>
+                  <td className="px-2 py-2 text-muted">{stage}</td>
+                  <td className="px-2 py-2 font-medium text-fg">{workItem}</td>
+                  {REGISTER_LEVELS.map((level) => <td key={`${index}-${level}`} className="border-l border-border/70 px-2 py-2 text-center text-subtle">—</td>)}
+                  <td className="border-l border-border px-2 py-2 text-right font-mono font-bold text-fg">{progress || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
 export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
+  if (!tower) return <WorkItemRegister />;
   const report = useAppStore((s) => s.report);
   const [pkg, setPkg] = useState<(typeof PACKAGES)[number]>("All");
   const [sel, setSel] = useState<Sel | null>(null);
