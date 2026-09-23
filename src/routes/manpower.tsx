@@ -19,6 +19,7 @@ import {
 export const Route = createFileRoute("/manpower")({ component: Manpower });
 
 type Mark = "P" | "A" | "O" | "L" | "";
+type AttendanceTime = { checkIn: string | null; checkOut: string | null };
 
 const STATUS_TO_MARK: Record<AttendanceStatus, Mark> = { Present: "P", Absent: "A", Off: "O", Leave: "L" };
 const TONE: Record<Mark, string> = {
@@ -33,10 +34,25 @@ function key(workerId: number, day: number) {
   return `${workerId}::${day}`;
 }
 
+function shortTime(value: string | null) {
+  if (!value) return "";
+  const [hours, minutes] = value.slice(0, 5).split(":");
+  return `${Number(hours)}${minutes === "00" ? "" : `:${minutes}`}`;
+}
+
+function cellLabel(mark: Mark, time: AttendanceTime | undefined) {
+  if (mark === "P") return `${shortTime(time?.checkIn ?? "08:00")}-${shortTime(time?.checkOut ?? "19:00")}`;
+  if (mark === "L") return "MC";
+  if (mark === "A") return "ABSENT";
+  if (mark === "O") return "OFF";
+  return "·";
+}
+
 function Manpower() {
   const today = useMemo(() => todayInKualaLumpur(), []);
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [map, setMap] = useState<Record<string, Mark>>({});
+  const [timeMap, setTimeMap] = useState<Record<string, AttendanceTime>>({});
   const [savingKey, setSavingKey] = useState<string | null>(null);
 
   const days = useMemo(
@@ -56,11 +72,14 @@ function Manpower() {
         if (cancelled) return;
         setWorkers(w);
         const next: Record<string, Mark> = {};
+        const nextTimes: Record<string, AttendanceTime> = {};
         for (const row of a) {
           const day = Number(row.attendanceDate.slice(8, 10));
           next[key(row.workerId, day)] = STATUS_TO_MARK[row.status];
+          nextTimes[key(row.workerId, day)] = { checkIn: row.checkIn, checkOut: row.checkOut };
         }
         setMap(next);
+        setTimeMap(nextTimes);
       } catch (err) {
         console.error("[manpower] load failed:", err);
       }
@@ -94,18 +113,22 @@ function Manpower() {
 
   async function cycleAttendance(workerId: number, day: number) {
     if (day > today.day) return;
-    const current = map[key(workerId, day)] ?? "";
-    const next: Mark = current === "P" ? "A" : current === "A" ? "L" : current === "L" ? "O" : current === "O" ? "" : "P";
-    const status = next === "P" ? "Present" : next === "A" ? "Absent" : next === "L" ? "Leave" : next === "O" ? "Off" : null;
     const cellKey = key(workerId, day);
+    const current = map[cellKey] ?? "";
+    const currentTime = timeMap[cellKey];
+    const next: Mark = current === "P" && currentTime?.checkOut === "19:00" ? "P" : current === "P" ? "L" : current === "L" ? "A" : current === "A" ? "O" : current === "O" ? "" : "P";
+    const status = next === "P" ? "Present" : next === "A" ? "Absent" : next === "L" ? "Leave" : next === "O" ? "Off" : null;
+    const nextTime: AttendanceTime = next === "P" ? { checkIn: "08:00", checkOut: current === "P" ? "22:00" : "19:00" } : { checkIn: null, checkOut: null };
     setSavingKey(cellKey);
     setMap((previous) => ({ ...previous, [cellKey]: next }));
+    setTimeMap((previous) => ({ ...previous, [cellKey]: nextTime }));
     try {
-      await setAttendance({ data: { workerId, date: dateForDay(day), status } });
+      await setAttendance({ data: { workerId, date: dateForDay(day), status, checkIn: nextTime.checkIn, checkOut: nextTime.checkOut } });
       window.dispatchEvent(new Event("gelaran:attendance-updated"));
     } catch (error) {
       console.error("[manpower] attendance save failed:", error);
       setMap((previous) => ({ ...previous, [cellKey]: current }));
+      setTimeMap((previous) => ({ ...previous, [cellKey]: timeMap[cellKey] ?? { checkIn: null, checkOut: null } }));
     } finally {
       setSavingKey(null);
     }
@@ -158,8 +181,8 @@ function Manpower() {
                   <p className="truncate text-sm font-medium leading-snug">{w.name}</p>
                   <p className="truncate text-[11px] text-muted">{w.team ?? "Unassigned"} · {w.workerType}</p>
                 </div>
-                <span className={cn("flex h-8 w-10 shrink-0 items-center justify-center rounded-md text-sm font-semibold sm:h-9 sm:w-12", TONE[mark])}>
-                  {mark || "·"}
+                <span className={cn("flex h-8 min-w-16 shrink-0 items-center justify-center rounded-md px-1 text-[11px] font-semibold sm:h-9 sm:min-w-20 sm:text-xs", TONE[mark])}>
+                  {cellLabel(mark, timeMap[key(w.id, today.day)])}
                 </span>
               </div>
             );
@@ -206,7 +229,7 @@ function Manpower() {
       <Card className="p-0">
         <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5 sm:px-4 sm:py-3">
           <h2 className="font-display text-base font-semibold sm:text-lg">{monthLabel} register</h2>
-          <p className="text-[10px] text-muted sm:text-xs">Click a past/today cell to cycle P → A → L → O → blank</p>
+          <p className="text-[10px] text-muted sm:text-xs">Click a past/today cell: 8–7 → 8–10 → MC → ABSENT → OFF → blank</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] border-collapse text-center text-[10px] sm:min-w-[900px] sm:text-xs">
@@ -245,21 +268,22 @@ function Manpower() {
                     <span className="block">{w.name}</span><span className="text-[9px] font-normal text-muted">{w.workerType === "Direct" ? "Direct" : "Sub"}</span>
                   </th>
                   {days.map((d) => {
-                    const m = map[key(w.id, d)] ?? "";
+                    const cellKey = key(w.id, d);
+                    const m = map[cellKey] ?? "";
                     return (
-                      <td key={d} aria-label={`${w.name} day ${d} ${m || "blank"}`} className="p-0.5">
+                      <td key={d} aria-label={`${w.name} day ${d} ${cellLabel(m, timeMap[cellKey])}`} className="p-0.5">
                         <button
                           type="button"
                           onClick={() => void cycleAttendance(w.id, d)}
                           disabled={d > today.day || savingKey === key(w.id, d)}
-                          title={d > today.day ? "Future date" : "Edit attendance"}
+                          title={d > today.day ? "Future date" : "Edit attendance time or status"}
                           className={cn(
-                            "flex h-6 w-full items-center justify-center rounded-xs font-medium transition-colors hover:ring-2 hover:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-50 sm:h-8",
+                            "flex h-7 min-w-12 w-full items-center justify-center rounded-xs px-0.5 text-[9px] font-medium leading-none transition-colors hover:ring-2 hover:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-50 sm:h-8 sm:min-w-14 sm:text-[10px]",
                             TONE[m],
                             d === today.day && "ring-1 ring-ink/30",
                           )}
                         >
-                          {m || "·"}
+                          {cellLabel(m, timeMap[cellKey])}
                         </button>
                       </td>
                     );

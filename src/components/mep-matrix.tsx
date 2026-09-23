@@ -333,16 +333,23 @@ function EditableMepMatrix({ tower }: { tower: "A" | "B" }) {
         ))}
       </div>
 
-      <Card className="p-0">
-        <div className="hidden overflow-x-auto md:block">
-          <table className="table-clear w-full min-w-[1100px] border-collapse text-left text-[10px] lg:text-[11px]" aria-label="MEP progress matrix">
+      <Card className="overflow-hidden p-0">
+        <div className="flex items-center justify-between gap-3 border-b border-border bg-surface-2 px-3 py-2.5 sm:px-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted">Landscape progress table</p>
+            <p className="mt-0.5 text-[11px] text-subtle">Level-by-level view · scroll horizontally to see every work item</p>
+          </div>
+          <span className="shrink-0 rounded-full bg-accent/10 px-2.5 py-1 text-[10px] font-semibold text-accent">{items.length} work items</span>
+        </div>
+        <div className="overflow-x-auto overscroll-x-contain">
+          <table className="table-clear w-full min-w-[1500px] border-collapse text-left text-[10px] lg:text-[11px]" aria-label="MEP progress matrix">
             <thead>
               <tr>
-                <th scope="col" className="sticky left-0 z-20 border-b border-border bg-surface-2 px-1.5 py-2 text-center font-semibold uppercase tracking-wide text-fg">
+                <th scope="col" className="sticky left-0 z-20 min-w-16 border-b border-border bg-surface-2 px-2 py-2 text-center font-semibold uppercase tracking-wide text-fg">
                   Level
                 </th>
                 {view !== "both" ? null : (
-                  <th scope="col" className="border-b border-border bg-surface-2 px-1 py-2 text-center font-semibold uppercase tracking-wide text-fg">
+                  <th scope="col" className="sticky left-16 z-20 min-w-14 border-b border-border bg-surface-2 px-1 py-2 text-center font-semibold uppercase tracking-wide text-fg">
                     Tower
                   </th>
                 )}
@@ -351,7 +358,7 @@ function EditableMepMatrix({ tower }: { tower: "A" | "B" }) {
                     key={item}
                     scope="col"
                     title={item}
-                    className="border-b border-l border-border bg-surface-2 px-1 py-2 text-center font-semibold leading-tight text-fg"
+                          className="min-w-24 border-b border-l border-border bg-surface-2 px-1.5 py-2 text-center font-semibold leading-tight text-fg"
                   >
                     <span className="block max-w-[8rem] whitespace-normal px-0.5 text-[9px] leading-tight lg:max-w-[10rem] lg:text-[10px]">{item}</span>
                   </th>
@@ -368,13 +375,13 @@ function EditableMepMatrix({ tower }: { tower: "A" | "B" }) {
                         <th
                           rowSpan={towers.length}
                           scope="row"
-                          className="sticky left-0 z-10 border-b border-border bg-surface px-1.5 py-1 text-center font-semibold text-fg"
+                          className="sticky left-0 z-10 border-b border-border bg-surface px-2 py-1 text-center font-semibold text-fg"
                         >
                           {level}
                         </th>
                       ) : null}
                       {view !== "both" ? null : (
-                        <td className="border-b border-border px-1 py-1 text-center font-semibold text-muted">{t}</td>
+                        <td className="sticky left-16 z-[1] border-b border-border bg-surface px-1 py-1 text-center font-semibold text-muted">{t}</td>
                       )}
                       {items.map((item) => {
                         const raw = row?.items[item] ?? null;
@@ -389,7 +396,7 @@ function EditableMepMatrix({ tower }: { tower: "A" | "B" }) {
                                 selectCell(t, level, item);
                               }}
                               className={cn(
-                                "flex h-8 w-full items-center justify-center rounded-md font-mono text-[11px] font-bold tabular-nums transition-transform hover:scale-[1.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink lg:h-9",
+                                "flex h-9 w-full items-center justify-center rounded-md font-mono text-[11px] font-bold tabular-nums transition-transform hover:scale-[1.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink",
                                 cellTone(v),
                                 active && "ring-2 ring-ink ring-offset-1",
                               )}
@@ -408,8 +415,8 @@ function EditableMepMatrix({ tower }: { tower: "A" | "B" }) {
             </tbody>
             <tfoot>
               <tr>
-                <th scope="row" className="sticky left-0 z-10 bg-ink px-1.5 py-2 text-center text-[10px] font-bold uppercase tracking-wide text-white">Overall</th>
-                {view === "both" ? <th scope="col" className="bg-ink px-1 py-2 text-center text-[10px] font-bold text-white">—</th> : null}
+                <th scope="row" className="sticky left-0 z-10 bg-ink px-2 py-2 text-center text-[10px] font-bold uppercase tracking-wide text-white">Overall</th>
+                {view === "both" ? <th scope="col" className="sticky left-16 z-[1] bg-ink px-1 py-2 text-center text-[10px] font-bold text-white">—</th> : null}
                 {items.map((item) => {
                   const value = overallFor(item);
                   return <td key={item} className="bg-ink px-0.5 py-2 text-center font-mono text-[10px] font-bold tabular-nums text-white">{value == null ? "—" : `${Math.round(value * 100)}%`}</td>;
@@ -417,47 +424,6 @@ function EditableMepMatrix({ tower }: { tower: "A" | "B" }) {
               </tr>
             </tfoot>
           </table>
-        </div>
-
-        <div className="space-y-2 p-2 md:hidden">
-          {levels.map((level) =>
-            towers.map((t) => {
-              const row = report.progression[t].find((r) => r.level === level);
-              return (
-                <section key={`${level}-${t}`} className="rounded-xl border border-border bg-surface-2/60 p-2">
-                  <div className="mb-2 flex items-center justify-between px-1">
-                    <span className="font-display text-sm font-semibold text-fg">Level {level}</span>
-                    {view === "both" ? <span className="rounded-full bg-ink px-2 py-0.5 text-[10px] font-semibold text-accent-fg">Tower {t}</span> : <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[10px] font-semibold text-accent">Tower {t}</span>}
-                  </div>
-                  <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-                    {items.map((item) => {
-                      const v = normalizeProgress(row?.items[item] ?? null);
-                      const active = sel?.level === level && sel.item === item && sel.tower === t;
-                      return (
-                        <button
-                          key={item}
-                          type="button"
-                          onClick={(event) => {
-                            triggerRef.current = event.currentTarget;
-                            selectCell(t, level, item);
-                          }}
-                          className={cn(
-                            "flex min-h-12 items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left transition-transform active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink",
-                            cellTone(v),
-                            active && "ring-2 ring-ink ring-offset-1",
-                          )}
-                          aria-label={`Tower ${t} level ${level} ${item}: ${v == null ? "not applicable" : `${Math.round(v * 100)} percent`}`}
-                        >
-                          <span className="min-w-0 text-[11px] font-semibold leading-tight" title={item}>{item}</span>
-                          <span className="shrink-0 font-mono text-sm font-bold tabular-nums">{v == null ? "—" : `${Math.round(v * 100)}%`}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </section>
-              );
-            }),
-          )}
         </div>
       </Card>
 

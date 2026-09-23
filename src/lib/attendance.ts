@@ -34,6 +34,8 @@ export type AttendanceRow = {
   workerId: number;
   attendanceDate: string; // YYYY-MM-DD
   status: AttendanceStatus;
+  checkIn: string | null;
+  checkOut: string | null;
 };
 
 /** Today's date parts in Malaysia time — the single source of truth for "today". */
@@ -142,11 +144,11 @@ export const listAttendanceForMonth = createServerFn({ method: "GET" })
   .handler(async ({ data }): Promise<AttendanceRow[]> => {
     try {
       const sql = await getSql();
-      const rows = await sql<{ worker_id: number; attendance_date: string; status: AttendanceStatus }>`
-        select worker_id, attendance_date, status from attendance
+      const rows = await sql<{ worker_id: number; attendance_date: string; status: AttendanceStatus; check_in: string | null; check_out: string | null }>`
+        select worker_id, attendance_date, status, check_in, check_out from attendance
         where date_trunc('month', attendance_date) = date_trunc('month', make_date(${data.year}, ${data.month}, 1))
       `;
-      return rows.map((r) => ({ workerId: r.worker_id, attendanceDate: r.attendance_date, status: r.status }));
+      return rows.map((r) => ({ workerId: r.worker_id, attendanceDate: r.attendance_date, status: r.status, checkIn: r.check_in, checkOut: r.check_out }));
     } catch (error) {
       console.error("[attendance] attendance store unavailable; showing blank register", error);
       return [];
@@ -160,9 +162,13 @@ export const ensureAttendanceThroughToday = createServerFn({ method: "POST" })
     const sql = await getSql();
     const dateFrom = `${data.year}-${String(data.month).padStart(2, "0")}-01`;
     const dateTo = `${data.year}-${String(data.month).padStart(2, "0")}-${String(data.throughDay).padStart(2, "0")}`;
+    await sql`
+      update attendance set check_in = coalesce(check_in, '08:00'), check_out = coalesce(check_out, '19:00'), updated_at = now()
+      where attendance_date between ${dateFrom}::date and ${dateTo}::date and status = 'Present'
+    `;
     const result = await sql<{ id: number }>`
-      insert into attendance (worker_id, attendance_date, status)
-      select w.id, d::date, 'Present'
+      insert into attendance (worker_id, attendance_date, status, check_in, check_out)
+      select w.id, d::date, 'Present', '08:00', '19:00'
       from workers w
       cross join generate_series(${dateFrom}::date, ${dateTo}::date, interval '1 day') d
       where w.active = true
@@ -193,6 +199,8 @@ export const setAttendance = createServerFn({ method: "POST" })
       workerId: z.number().int(),
       date: dateSchema,
       status: z.enum(["Present", "Absent", "Off", "Leave"]).nullable(),
+      checkIn: z.string().regex(/^\d{2}:\d{2}$/).nullable().optional(),
+      checkOut: z.string().regex(/^\d{2}:\d{2}$/).nullable().optional(),
     }),
   )
   .handler(async ({ data }): Promise<{ ok: true }> => {
@@ -208,11 +216,13 @@ export const setAttendance = createServerFn({ method: "POST" })
       });
       return { ok: true };
     }
+    const checkIn = data.status === "Present" ? (data.checkIn ?? "08:00") : (data.checkIn ?? null);
+    const checkOut = data.status === "Present" ? (data.checkOut ?? "19:00") : (data.checkOut ?? null);
     await sql`
-      insert into attendance (worker_id, attendance_date, status)
-      values (${data.workerId}, ${data.date}, ${data.status})
+      insert into attendance (worker_id, attendance_date, status, check_in, check_out)
+      values (${data.workerId}, ${data.date}, ${data.status}, ${checkIn}, ${checkOut})
       on conflict (worker_id, attendance_date)
-      do update set status = excluded.status, updated_at = now()
+      do update set status = excluded.status, check_in = ${data.checkIn ?? null}, check_out = ${data.checkOut ?? null}, updated_at = now()
     `;
     await recordAuditEvent(sql, {
       action: "attendance.updated",
@@ -242,8 +252,8 @@ export const setAttendanceByName = createServerFn({ method: "POST" })
     `;
     if (!worker) throw new Error(`Worker not found: ${data.workerName}`);
     await sql`
-      insert into attendance (worker_id, attendance_date, status)
-      values (${worker.id}, ${data.date}, ${data.status})
+      insert into attendance (worker_id, attendance_date, status, check_in, check_out)
+      values (${worker.id}, ${data.date}, ${data.status}, ${data.status === "Present" ? "08:00" : null}, ${data.status === "Present" ? "19:00" : null})
       on conflict (worker_id, attendance_date)
       do update set status = excluded.status, updated_at = now()
     `;
@@ -274,8 +284,8 @@ export const setAttendanceForTeam = createServerFn({ method: "POST" })
     if (!workers.length) throw new Error(`No active workers found in ${data.team}`);
     for (const worker of workers) {
       await sql`
-        insert into attendance (worker_id, attendance_date, status)
-        values (${worker.id}, ${data.date}, ${data.status})
+        insert into attendance (worker_id, attendance_date, status, check_in, check_out)
+        values (${worker.id}, ${data.date}, ${data.status}, ${data.status === "Present" ? "08:00" : null}, ${data.status === "Present" ? "19:00" : null})
         on conflict (worker_id, attendance_date)
         do update set status = excluded.status, updated_at = now()
       `;

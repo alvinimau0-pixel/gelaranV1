@@ -189,10 +189,6 @@ function Home() {
             <p className="mt-1 text-[10px] font-medium uppercase tracking-wide text-white/70">workers</p>
           </div>
         </div>
-        <div className="mb-4 flex flex-wrap gap-2 text-xs">
-          <span className="rounded-full bg-surface-2 px-3 py-1.5 font-medium text-fg">Start {report.dailyReport.workHours.start}</span>
-          <span className="rounded-full bg-surface-2 px-3 py-1.5 font-medium text-fg">Finish {report.dailyReport.workHours.finish}</span>
-        </div>
         <div className="mb-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           {report.dailyReport.subcontractors.map((sub) => (
             <div key={sub.name} className="rounded-xl border border-border bg-surface-2/70 px-3 py-3">
