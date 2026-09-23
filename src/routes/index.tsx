@@ -19,6 +19,7 @@ import { useAppStore } from "@/lib/store";
 import { todayInKualaLumpur } from "@/lib/attendance";
 import { listSitePhotos, createSitePhoto, type SitePhoto } from "@/lib/photos";
 import { compressImageToBase64 } from "@/lib/image-compress";
+import { getLatestDailySummary, type DailySummary } from "@/lib/daily-summary";
 
 export const Route = createFileRoute("/")({ component: Home });
 
@@ -32,6 +33,7 @@ function Home() {
   const [photoPaused, setPhotoPaused] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [dailySummary, setDailySummary] = useState<DailySummary | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -51,6 +53,12 @@ function Home() {
     const t = setInterval(() => setPhotoIdx((i) => (i + 1) % photos.length), 3000);
     return () => clearInterval(t);
   }, [photoPaused, photos.length]);
+
+  useEffect(() => {
+    getLatestDailySummary()
+      .then(setDailySummary)
+      .catch((err) => console.error("[dashboard] daily summary load failed", err));
+  }, []);
 
   async function onUpload(file: File | null) {
     if (!file || !file.type.startsWith("image/")) return;
@@ -177,6 +185,32 @@ function Home() {
         </div>
         {uploadError ? <p role="alert" className="border-t border-bad/20 bg-bad-bg px-3 py-2 text-sm text-bad">{uploadError}</p> : null}
       </Card>
+
+      {dailySummary ? (
+        <Card>
+          <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-accent">Automated daily summary</p>
+              <h2 className="mt-0.5 font-display text-base font-semibold sm:text-lg">Manpower & tower progress · {dailySummary.summaryDate}</h2>
+            </div>
+            <Link to="/daily-summary" className="text-xs font-medium text-accent hover:underline">View history →</Link>
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div className="rounded-lg bg-ok-bg px-3 py-2"><p className="text-[10px] font-semibold uppercase tracking-wide text-muted">Present</p><p className="mt-1 font-mono text-lg font-bold text-ok">{dailySummary.attendance.present}</p></div>
+            <div className="rounded-lg bg-bad-bg px-3 py-2"><p className="text-[10px] font-semibold uppercase tracking-wide text-muted">Absent</p><p className="mt-1 font-mono text-lg font-bold text-bad">{dailySummary.attendance.absent}</p></div>
+            <div className="rounded-lg bg-accent/10 px-3 py-2"><p className="text-[10px] font-semibold uppercase tracking-wide text-muted">Direct / sub</p><p className="mt-1 font-mono text-lg font-bold text-accent">{dailySummary.attendance.direct} / {dailySummary.attendance.subcontractor}</p></div>
+            <div className="rounded-lg bg-surface-2 px-3 py-2"><p className="text-[10px] font-semibold uppercase tracking-wide text-muted">MC / Off</p><p className="mt-1 font-mono text-lg font-bold text-fg">{dailySummary.attendance.mc} / {dailySummary.attendance.off}</p></div>
+          </div>
+          <div className="mt-3 grid gap-2 sm:grid-cols-3">
+            {([["Tower A", dailySummary.towers.A], ["Tower B", dailySummary.towers.B], ["Overall", dailySummary.towers.overall]] as const).map(([label, value]) => (
+              <div key={label} className="rounded-lg border border-border px-3 py-2">
+                <div className="flex items-center justify-between text-xs"><span className="font-medium text-muted">{label}</span><span className="font-mono font-bold text-fg">{pct(value)}</span></div>
+                <div className="mt-2 h-2 overflow-hidden rounded-full bg-surface-2"><div className="h-full rounded-full bg-accent" style={{ width: `${Math.round(value * 100)}%` }} /></div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      ) : null}
 
       <Card>
         <div className="mb-3 flex flex-wrap items-start justify-between gap-2">

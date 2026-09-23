@@ -3,5 +3,11 @@
   "framework": "tanstack-start",
   "installCommand": "npm install",
   "buildCommand": "npm run build",
-  "ignoreCommand": "exit 1"
+  "ignoreCommand": "exit 1",
+  "crons": [
+    {
+      "path": "/api/daily-summary",
+      "schedule": "0 11 * * *"
+    }
+  ]
 }
