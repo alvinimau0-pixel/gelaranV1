@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ActivityRouteImport } from './routes/activity'
 import { Route as BoqRouteImport } from './routes/boq'
+import { Route as DailySummaryRouteImport } from './routes/daily-summary'
 import { Route as LibraryRouteImport } from './routes/library'
 import { Route as ManpowerRouteImport } from './routes/manpower'
 import { Route as MaterialRouteImport } from './routes/material'
@@ -20,6 +21,7 @@ import { Route as PhotosRouteImport } from './routes/photos'
 import { Route as PoLogRouteImport } from './routes/po-log'
 import { Route as TowerARouteImport } from './routes/tower-a'
 import { Route as TowerBRouteImport } from './routes/tower-b'
+import { Route as ApiDailySummaryRouteImport } from './routes/api/daily-summary'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -34,6 +36,11 @@ const ActivityRoute = ActivityRouteImport.update({
 const BoqRoute = BoqRouteImport.update({
   id: '/boq',
   path: '/boq',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DailySummaryRoute = DailySummaryRouteImport.update({
+  id: '/daily-summary',
+  path: '/daily-summary',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LibraryRoute = LibraryRouteImport.update({
@@ -76,11 +83,17 @@ const TowerBRoute = TowerBRouteImport.update({
   path: '/tower-b',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiDailySummaryRoute = ApiDailySummaryRouteImport.update({
+  id: '/api/daily-summary',
+  path: '/api/daily-summary',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/activity': typeof ActivityRoute
   '/boq': typeof BoqRoute
+  '/daily-summary': typeof DailySummaryRoute
   '/library': typeof LibraryRoute
   '/manpower': typeof ManpowerRoute
   '/material': typeof MaterialRoute
@@ -89,11 +102,13 @@ export interface FileRoutesByFullPath {
   '/po-log': typeof PoLogRoute
   '/tower-a': typeof TowerARoute
   '/tower-b': typeof TowerBRoute
+  '/api/daily-summary': typeof ApiDailySummaryRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/activity': typeof ActivityRoute
   '/boq': typeof BoqRoute
+  '/daily-summary': typeof DailySummaryRoute
   '/library': typeof LibraryRoute
   '/manpower': typeof ManpowerRoute
   '/material': typeof MaterialRoute
@@ -102,12 +117,14 @@ export interface FileRoutesByTo {
   '/po-log': typeof PoLogRoute
   '/tower-a': typeof TowerARoute
   '/tower-b': typeof TowerBRoute
+  '/api/daily-summary': typeof ApiDailySummaryRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/activity': typeof ActivityRoute
   '/boq': typeof BoqRoute
+  '/daily-summary': typeof DailySummaryRoute
   '/library': typeof LibraryRoute
   '/manpower': typeof ManpowerRoute
   '/material': typeof MaterialRoute
@@ -116,6 +133,7 @@ export interface FileRoutesById {
   '/po-log': typeof PoLogRoute
   '/tower-a': typeof TowerARoute
   '/tower-b': typeof TowerBRoute
+  '/api/daily-summary': typeof ApiDailySummaryRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -123,6 +141,7 @@ export interface FileRouteTypes {
     | '/'
     | '/activity'
     | '/boq'
+    | '/daily-summary'
     | '/library'
     | '/manpower'
     | '/material'
@@ -131,11 +150,13 @@ export interface FileRouteTypes {
     | '/po-log'
     | '/tower-a'
     | '/tower-b'
+    | '/api/daily-summary'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/activity'
     | '/boq'
+    | '/daily-summary'
     | '/library'
     | '/manpower'
     | '/material'
@@ -144,11 +165,13 @@ export interface FileRouteTypes {
     | '/po-log'
     | '/tower-a'
     | '/tower-b'
+    | '/api/daily-summary'
   id:
     | '__root__'
     | '/'
     | '/activity'
     | '/boq'
+    | '/daily-summary'
     | '/library'
     | '/manpower'
     | '/material'
@@ -157,12 +180,14 @@ export interface FileRouteTypes {
     | '/po-log'
     | '/tower-a'
     | '/tower-b'
+    | '/api/daily-summary'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ActivityRoute: typeof ActivityRoute
   BoqRoute: typeof BoqRoute
+  DailySummaryRoute: typeof DailySummaryRoute
   LibraryRoute: typeof LibraryRoute
   ManpowerRoute: typeof ManpowerRoute
   MaterialRoute: typeof MaterialRoute
@@ -171,6 +196,7 @@ export interface RootRouteChildren {
   PoLogRoute: typeof PoLogRoute
   TowerARoute: typeof TowerARoute
   TowerBRoute: typeof TowerBRoute
+  ApiDailySummaryRoute: typeof ApiDailySummaryRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -194,6 +220,13 @@ declare module '@tanstack/react-router' {
       path: '/boq'
       fullPath: '/boq'
       preLoaderRoute: typeof BoqRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/daily-summary': {
+      id: '/daily-summary'
+      path: '/daily-summary'
+      fullPath: '/daily-summary'
+      preLoaderRoute: typeof DailySummaryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/library': {
@@ -252,6 +285,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TowerBRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/daily-summary': {
+      id: '/api/daily-summary'
+      path: '/api/daily-summary'
+      fullPath: '/api/daily-summary'
+      preLoaderRoute: typeof ApiDailySummaryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -259,6 +299,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ActivityRoute: ActivityRoute,
   BoqRoute: BoqRoute,
+  DailySummaryRoute: DailySummaryRoute,
   LibraryRoute: LibraryRoute,
   ManpowerRoute: ManpowerRoute,
   MaterialRoute: MaterialRoute,
@@ -267,6 +308,7 @@ const rootRouteChildren: RootRouteChildren = {
   PoLogRoute: PoLogRoute,
   TowerARoute: TowerARoute,
   TowerBRoute: TowerBRoute,
+  ApiDailySummaryRoute: ApiDailySummaryRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
