@@ -78,6 +78,8 @@ export const getProgression = createServerFn({ method: "GET" }).handler(
 export const saveProgression = createServerFn({ method: "POST" })
   .validator(z.object({ data: progressionSchema }))
   .handler(async ({ data }): Promise<{ ok: true; updatedAt: string }> => {
+    const { requireSupervisor } = await import("@/lib/auth/roles.server");
+    await requireSupervisor();
     const sql = await getSql();
     await ensureTable(sql);
     const [row] = await sql<{ updated_at: string }>`
@@ -111,6 +113,8 @@ export const setItemRange = createServerFn({ method: "POST" })
     async ({
       data,
     }): Promise<{ ok: true; updated: number; progression: ProgressionData }> => {
+      const { requireSupervisor } = await import("@/lib/auth/roles.server");
+      await requireSupervisor();
       const sql = await getSql();
       await ensureTable(sql);
 

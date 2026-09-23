@@ -21,7 +21,7 @@ import { ExportDataButton } from "@/components/operations-tools";
 const GroqAssistant = lazy(() => import("@/components/groq-assistant").then((module) => ({ default: module.GroqAssistant })));
 
 const NAV = [
-  { to: "/", label: "Overview", icon: LayoutDashboard },
+  { to: "/home", label: "Home", icon: LayoutDashboard },
   { to: "/photos", label: "Photos", icon: Camera },
   { to: "/matrix", label: "MEP matrix", icon: Grid3x3 },
   { to: "/tower-a", label: "Tower A", icon: Building2 },
@@ -38,6 +38,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [open, setOpen] = useState(false);
   const report = useAppStore((s) => s.report);
+  const isEntry = pathname === "/";
 
   return (
     <div className="min-h-dvh">
@@ -47,7 +48,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
       >
         Skip to main content
       </a>
-      <header className="sticky top-0 z-40 border-b border-border/80 bg-surface/85 backdrop-blur-xl supports-[backdrop-filter]:bg-surface/75">
+      <header className={cn("sticky top-0 z-40 border-b border-border/80 bg-surface/85 backdrop-blur-xl supports-[backdrop-filter]:bg-surface/75", isEntry && "hidden")}>
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-2.5 sm:px-6 sm:py-3">
           <Link to="/" className="flex min-w-0 items-center gap-2.5 sm:gap-3">
             <img
@@ -135,7 +136,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           </nav>
         ) : null}
       </header>
-      <main id="main-content" tabIndex={-1} className="mx-auto max-w-7xl scroll-mt-24 px-4 py-5 sm:px-6 sm:py-8">
+      <main id="main-content" tabIndex={-1} className={cn("mx-auto max-w-7xl scroll-mt-24", isEntry ? "p-2 sm:p-4" : "px-4 py-5 sm:px-6 sm:py-8")}>
         {children}
       </main>
       <Suspense fallback={null}><GroqAssistant /></Suspense>

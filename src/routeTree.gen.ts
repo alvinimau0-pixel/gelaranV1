@@ -13,7 +13,9 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ActivityRouteImport } from './routes/activity'
 import { Route as BoqRouteImport } from './routes/boq'
 import { Route as DailySummaryRouteImport } from './routes/daily-summary'
+import { Route as HomeRouteImport } from './routes/home'
 import { Route as LibraryRouteImport } from './routes/library'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as ManpowerRouteImport } from './routes/manpower'
 import { Route as MaterialRouteImport } from './routes/material'
 import { Route as MatrixRouteImport } from './routes/matrix'
@@ -43,9 +45,19 @@ const DailySummaryRoute = DailySummaryRouteImport.update({
   path: '/daily-summary',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HomeRoute = HomeRouteImport.update({
+  id: '/home',
+  path: '/home',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LibraryRoute = LibraryRouteImport.update({
   id: '/library',
   path: '/library',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ManpowerRoute = ManpowerRouteImport.update({
@@ -94,7 +106,9 @@ export interface FileRoutesByFullPath {
   '/activity': typeof ActivityRoute
   '/boq': typeof BoqRoute
   '/daily-summary': typeof DailySummaryRoute
+  '/home': typeof HomeRoute
   '/library': typeof LibraryRoute
+  '/login': typeof LoginRoute
   '/manpower': typeof ManpowerRoute
   '/material': typeof MaterialRoute
   '/matrix': typeof MatrixRoute
@@ -109,7 +123,9 @@ export interface FileRoutesByTo {
   '/activity': typeof ActivityRoute
   '/boq': typeof BoqRoute
   '/daily-summary': typeof DailySummaryRoute
+  '/home': typeof HomeRoute
   '/library': typeof LibraryRoute
+  '/login': typeof LoginRoute
   '/manpower': typeof ManpowerRoute
   '/material': typeof MaterialRoute
   '/matrix': typeof MatrixRoute
@@ -125,7 +141,9 @@ export interface FileRoutesById {
   '/activity': typeof ActivityRoute
   '/boq': typeof BoqRoute
   '/daily-summary': typeof DailySummaryRoute
+  '/home': typeof HomeRoute
   '/library': typeof LibraryRoute
+  '/login': typeof LoginRoute
   '/manpower': typeof ManpowerRoute
   '/material': typeof MaterialRoute
   '/matrix': typeof MatrixRoute
@@ -142,7 +160,9 @@ export interface FileRouteTypes {
     | '/activity'
     | '/boq'
     | '/daily-summary'
+    | '/home'
     | '/library'
+    | '/login'
     | '/manpower'
     | '/material'
     | '/matrix'
@@ -157,7 +177,9 @@ export interface FileRouteTypes {
     | '/activity'
     | '/boq'
     | '/daily-summary'
+    | '/home'
     | '/library'
+    | '/login'
     | '/manpower'
     | '/material'
     | '/matrix'
@@ -172,7 +194,9 @@ export interface FileRouteTypes {
     | '/activity'
     | '/boq'
     | '/daily-summary'
+    | '/home'
     | '/library'
+    | '/login'
     | '/manpower'
     | '/material'
     | '/matrix'
@@ -188,7 +212,9 @@ export interface RootRouteChildren {
   ActivityRoute: typeof ActivityRoute
   BoqRoute: typeof BoqRoute
   DailySummaryRoute: typeof DailySummaryRoute
+  HomeRoute: typeof HomeRoute
   LibraryRoute: typeof LibraryRoute
+  LoginRoute: typeof LoginRoute
   ManpowerRoute: typeof ManpowerRoute
   MaterialRoute: typeof MaterialRoute
   MatrixRoute: typeof MatrixRoute
@@ -229,11 +255,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DailySummaryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/home': {
+      id: '/home'
+      path: '/home'
+      fullPath: '/home'
+      preLoaderRoute: typeof HomeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/library': {
       id: '/library'
       path: '/library'
       fullPath: '/library'
       preLoaderRoute: typeof LibraryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/manpower': {
@@ -300,7 +340,9 @@ const rootRouteChildren: RootRouteChildren = {
   ActivityRoute: ActivityRoute,
   BoqRoute: BoqRoute,
   DailySummaryRoute: DailySummaryRoute,
+  HomeRoute: HomeRoute,
   LibraryRoute: LibraryRoute,
+  LoginRoute: LoginRoute,
   ManpowerRoute: ManpowerRoute,
   MaterialRoute: MaterialRoute,
   MatrixRoute: MatrixRoute,

@@ -13,6 +13,11 @@ import { getSql } from "@/lib/db";
 import { report as seedReport } from "@/lib/report-data";
 import { recordAuditEvent } from "@/lib/audit.server";
 
+async function requireAttendanceSupervisor() {
+  const { requireSupervisor } = await import("@/lib/auth/roles.server");
+  return requireSupervisor();
+}
+
 export const KL_TZ = "Asia/Kuala_Lumpur";
 
 export type AttendanceStatus = "Present" | "Absent" | "Off" | "Leave";
@@ -181,6 +186,7 @@ export const ensureAttendanceThroughToday = createServerFn({ method: "POST" })
 export const setWorkerType = createServerFn({ method: "POST" })
   .validator(z.object({ workerId: z.number().int(), workerType: z.enum(["Direct", "Subcontractor"]) }))
   .handler(async ({ data }): Promise<{ ok: true }> => {
+    await requireAttendanceSupervisor();
     const sql = await getSql();
     await sql`update workers set worker_type = ${data.workerType}, updated_at = now() where id = ${data.workerId}`;
     await recordAuditEvent(sql, {
@@ -204,6 +210,7 @@ export const setAttendance = createServerFn({ method: "POST" })
     }),
   )
   .handler(async ({ data }): Promise<{ ok: true }> => {
+    await requireAttendanceSupervisor();
     const sql = await getSql();
     if (data.status === null) {
       await sql`delete from attendance where worker_id = ${data.workerId} and attendance_date = ${data.date}`;
@@ -243,6 +250,7 @@ export const setAttendanceByName = createServerFn({ method: "POST" })
     }),
   )
   .handler(async ({ data }): Promise<{ ok: true; workerId: number; workerName: string }> => {
+    await requireAttendanceSupervisor();
     await seedWorkersIfEmpty();
     const sql = await getSql();
     const [worker] = await sql<{ id: number; name: string }>`
@@ -276,6 +284,7 @@ export const setAttendanceForTeam = createServerFn({ method: "POST" })
     }),
   )
   .handler(async ({ data }): Promise<{ ok: true; count: number; team: string }> => {
+    await requireAttendanceSupervisor();
     await seedWorkersIfEmpty();
     const sql = await getSql();
     const workers = await sql<{ id: number }>`
@@ -331,6 +340,7 @@ export const addWorker = createServerFn({ method: "POST" })
     }),
   )
   .handler(async ({ data }): Promise<{ ok: true; worker: Worker }> => {
+    await requireAttendanceSupervisor();
     await seedWorkersIfEmpty();
     const sql = await getSql();
     const [row] = await sql<{
@@ -382,6 +392,7 @@ export const addWorker = createServerFn({ method: "POST" })
 export const removeWorker = createServerFn({ method: "POST" })
   .validator(z.object({ workerName: z.string().trim().min(2).max(100) }))
   .handler(async ({ data }): Promise<{ ok: true; workerName: string }> => {
+    await requireAttendanceSupervisor();
     await seedWorkersIfEmpty();
     const sql = await getSql();
     const [worker] = await sql<{ id: number; name: string }>`

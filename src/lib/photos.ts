@@ -103,6 +103,8 @@ export const updateSitePhoto = createServerFn({ method: "POST" })
     }),
   )
   .handler(async ({ data }): Promise<{ ok: true }> => {
+    const { requireSupervisor } = await import("@/lib/auth/roles.server");
+    await requireSupervisor();
     const sql = await getSql();
     await sql`
       update site_photos set
@@ -126,7 +128,9 @@ export const updateSitePhoto = createServerFn({ method: "POST" })
 export const deleteSitePhoto = createServerFn({ method: "POST" })
   .validator(z.object({ id: z.number().int() }))
   .handler(async ({ data }): Promise<{ ok: true }> => {
+    const { requireSupervisor } = await import("@/lib/auth/roles.server");
     const sql = await getSql();
+    await requireSupervisor();
     const [row] = await sql<{ photo_url: string }>`select photo_url from site_photos where id = ${data.id}`;
     await sql`delete from site_photos where id = ${data.id}`;
     if (row) {
