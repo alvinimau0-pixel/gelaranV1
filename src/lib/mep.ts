@@ -2,6 +2,49 @@ import { report } from "@/lib/report-data";
 
 export type MepPackage = "Cold Water" | "Flush Water" | "Sanitary" | "Irrigation" | "VO";
 
+export type TaskPackage = "CW" | "FW" | "SAN" | "VO";
+export type MepTask = {
+  id: string;
+  stage: "Coordination" | "Installation" | "Testing" | "Commissioning" | "Commercial";
+  short: string;
+};
+
+export const TASK_GROUPS: Record<TaskPackage, { label: string; logic: string; tasks: MepTask[] }> = {
+  CW: { label: "Cold Water", logic: "Update by measured installation quantity, then confirm inspection and testing evidence.", tasks: [
+    { id: "CW-01", stage: "Coordination", short: "Incoming connection and meter" },
+    { id: "CW-02", stage: "Installation", short: "Storage tanks and break tank" },
+    { id: "CW-03", stage: "Installation", short: "Pumping main and distribution" },
+    { id: "CW-04", stage: "Installation", short: "Booster pump, VSD and controls" },
+    { id: "CW-05", stage: "Installation", short: "Valves, PRVs, gauges and backflow" },
+    { id: "CW-06", stage: "Testing", short: "Sleeves, supports and fire stopping" },
+    { id: "CW-07", stage: "Commissioning", short: "Flush, disinfect and sample" },
+  ] },
+  FW: { label: "Flush Water", logic: "Track independently from CW; do not treat an unrecorded FW value as zero.", tasks: [
+    { id: "FW-01", stage: "Coordination", short: "Non-potable separation and labels" },
+    { id: "FW-02", stage: "Installation", short: "FW tanks and break-tank link" },
+    { id: "FW-03", stage: "Installation", short: "Booster pump and pressure tank" },
+    { id: "FW-04", stage: "Installation", short: "Pumping main and floor distribution" },
+    { id: "FW-05", stage: "Installation", short: "Toilet flushing connections" },
+    { id: "FW-06", stage: "Commissioning", short: "Backflow, flow and commissioning" },
+  ] },
+  SAN: { label: "Sanitary", logic: "Separate installation status from drainage test and technical acceptance.", tasks: [
+    { id: "SAN-01", stage: "Coordination", short: "Soil, waste and vent risers" },
+    { id: "SAN-02", stage: "Installation", short: "Stacks and tenant branches" },
+    { id: "SAN-03", stage: "Installation", short: "Toilet distribution and hacking" },
+    { id: "SAN-04", stage: "Installation", short: "Floor traps, wastes and access" },
+    { id: "SAN-05", stage: "Installation", short: "Fixtures and sanitary wares" },
+    { id: "SAN-06", stage: "Testing", short: "Water, air and flow tests" },
+  ] },
+  VO: { label: "Variation Orders", logic: "Track by instruction, design, approval, installation, acceptance and valuation.", tasks: [
+    { id: "VO-01", stage: "Commercial", short: "Register instruction and affected scope" },
+    { id: "VO-02", stage: "Coordination", short: "Revise tank and pipework drawings" },
+    { id: "VO-03", stage: "Installation", short: "FRP tank changes and rerouting" },
+    { id: "VO-04", stage: "Installation", short: "Ladders, drains, overflows and sampling" },
+    { id: "VO-05", stage: "Testing", short: "VO testing and technical acceptance" },
+    { id: "VO-06", stage: "Commercial", short: "Measure, claim and close valuation" },
+  ] },
+};
+
 export const ITEM_META: Record<
   string,
   { package: MepPackage; detail: string; drawing: string }

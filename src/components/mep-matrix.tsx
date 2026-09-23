@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { X } from "lucide-react";
 import { useAppStore } from "@/lib/store";
-import { ITEM_META, PACKAGES, cellTone, itemsForPackage, normalizeProgress, relatedMaterial, validateProgression } from "@/lib/mep";
+import { ITEM_META, PACKAGES, TASK_GROUPS, cellTone, itemsForPackage, normalizeProgress, relatedMaterial, validateProgression } from "@/lib/mep";
 import { Badge, Card, Meter } from "@/components/ui";
 import { cn, pct } from "@/lib/utils";
 
@@ -133,6 +133,32 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
           </button>
         ))}
       </div>
+
+      <Card className="p-3 sm:p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted">Short task breakdown</p>
+            <h2 className="mt-1 font-display text-base font-semibold text-fg">CW · FW · SAN · VO workflow</h2>
+          </div>
+          <span className="rounded-full bg-accent/10 px-2.5 py-1 text-[10px] font-semibold text-accent">{pkg === "All" ? "All packages" : pkg}</span>
+        </div>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          {(Object.entries(TASK_GROUPS) as [keyof typeof TASK_GROUPS, (typeof TASK_GROUPS)[keyof typeof TASK_GROUPS]][])
+            .filter(([code]) => pkg === "All" || (pkg === "Cold Water" && code === "CW") || (pkg === "Flush Water" && code === "FW") || (pkg === "Sanitary" && code === "SAN") || (pkg === "VO" && code === "VO"))
+            .map(([code, group]) => (
+              <div key={code} className="rounded-lg border border-border bg-surface-2/60 p-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-bold text-fg">{code} · {group.label}</span>
+                  <span className="font-mono text-[10px] text-muted">{group.tasks.length} tasks</span>
+                </div>
+                <p className="mt-1.5 text-[10px] leading-relaxed text-muted">{group.logic}</p>
+                <ul className="mt-2 space-y-1">
+                  {group.tasks.map((task) => <li key={task.id} className="text-[10px] leading-tight text-fg"><span className="mr-1 font-mono text-muted">{task.id}</span>{task.short}</li>)}
+                </ul>
+              </div>
+            ))}
+        </div>
+      </Card>
 
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-border bg-surface px-3 py-2 text-[11px] text-muted sm:text-xs">
         <span className="font-semibold text-fg">Color validation</span>
