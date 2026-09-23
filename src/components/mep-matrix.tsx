@@ -16,6 +16,24 @@ const LEGEND = [
   { label: "N/A", range: "—", className: "bg-slate-200 ring-1 ring-inset ring-slate-300" },
 ];
 
+const PACKAGE_CODES: Record<(typeof PACKAGES)[number], string> = {
+  All: "ALL",
+  "Cold Water": "CW",
+  "Flush Water": "FW",
+  Sanitary: "SAN",
+  Irrigation: "IRR",
+  VO: "VO",
+};
+
+const STAGE_CODES = { Coordination: "CO", Installation: "IN", Testing: "TE", Commissioning: "CM", Commercial: "VO" } as const;
+
+function itemCode(item: string, allItems: string[]) {
+  const pkg = ITEM_META[item]?.package;
+  const prefix = pkg === "Cold Water" ? "CW" : pkg === "Flush Water" ? "FW" : pkg === "Sanitary" ? "SAN" : pkg === "Irrigation" ? "IRR" : "VO";
+  const packageItems = allItems.filter((candidate) => ITEM_META[candidate]?.package === pkg);
+  return `${prefix}-${String(Math.max(1, packageItems.indexOf(item) + 1)).padStart(2, "0")}`;
+}
+
 export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
   const report = useAppStore((s) => s.report);
   const [pkg, setPkg] = useState<(typeof PACKAGES)[number]>("All");
@@ -27,6 +45,13 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
   const levels = report.progression.A.map((r) => r.level);
   const towers: ("A" | "B")[] = view === "both" ? ["A", "B"] : [view];
   const validationIssues = validateProgression(report.progression, items);
+  const packageProgress = (code: keyof typeof TASK_GROUPS) => {
+    const packageName = code === "CW" ? "Cold Water" : code === "FW" ? "Flush Water" : code === "SAN" ? "Sanitary" : null;
+    if (!packageName) return null;
+    const packageItems = report.items.filter((item) => ITEM_META[item]?.package === packageName);
+    const values = (["A", "B"] as const).flatMap((t) => report.progression[t].flatMap((row) => packageItems.map((item) => row.items[item] ?? null))).filter((value): value is number => value != null);
+    return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
+  };
   const overallFor = (item: string) => {
     const values = towers.flatMap((t) => levels.map((level) => report.progression[t].find((r) => r.level === level)?.items[item] ?? null)).filter(
       (value): value is number => value != null,
@@ -124,39 +149,53 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
             key={p}
             type="button"
             onClick={() => setPkg(p)}
-            className={cn(
-              "min-h-9 rounded-full px-3 text-xs font-medium transition-colors duration-150 sm:min-h-11 sm:px-4 sm:text-sm",
-              pkg === p ? "bg-ink text-accent-fg" : "bg-surface-2 text-muted hover:text-fg",
-            )}
-          >
-            {p}
-          </button>
+              className={cn(
+                "min-h-9 rounded-full px-3 text-xs font-medium transition-colors duration-150 sm:min-h-11 sm:px-4 sm:text-sm",
+                pkg === p ? "bg-ink text-accent-fg" : "bg-surface-2 text-muted hover:text-fg",
+              )}
+              title={p}
+            >
+            <span aria-hidden="true">{PACKAGE_CODES[p]}</span>
+            <span className="sr-only">{p}</span>
+            </button>
         ))}
       </div>
 
-      <Card className="p-3 sm:p-4">
+      <Card className="p-0">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted">Short task breakdown</p>
-            <h2 className="mt-1 font-display text-base font-semibold text-fg">CW · FW · SAN · VO workflow</h2>
+            <p className="px-3 pt-3 text-xs font-semibold uppercase tracking-wide text-muted sm:px-4 sm:pt-4">Task key</p>
+            <h2 className="px-3 pb-3 pt-1 font-display text-base font-semibold text-fg sm:px-4 sm:pb-4">CW · FW · SAN · VO</h2>
           </div>
-          <span className="rounded-full bg-accent/10 px-2.5 py-1 text-[10px] font-semibold text-accent">{pkg === "All" ? "All packages" : pkg}</span>
+          <span className="mr-3 mt-3 rounded-full bg-accent/10 px-2.5 py-1 font-mono text-[10px] font-semibold text-accent sm:mr-4 sm:mt-4">{PACKAGE_CODES[pkg]}</span>
         </div>
-        <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-          {(Object.entries(TASK_GROUPS) as [keyof typeof TASK_GROUPS, (typeof TASK_GROUPS)[keyof typeof TASK_GROUPS]][])
-            .filter(([code]) => pkg === "All" || (pkg === "Cold Water" && code === "CW") || (pkg === "Flush Water" && code === "FW") || (pkg === "Sanitary" && code === "SAN") || (pkg === "VO" && code === "VO"))
-            .map(([code, group]) => (
-              <div key={code} className="rounded-lg border border-border bg-surface-2/60 p-2.5">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-bold text-fg">{code} · {group.label}</span>
-                  <span className="font-mono text-[10px] text-muted">{group.tasks.length} tasks</span>
-                </div>
-                <p className="mt-1.5 text-[10px] leading-relaxed text-muted">{group.logic}</p>
-                <ul className="mt-2 space-y-1">
-                  {group.tasks.map((task) => <li key={task.id} className="text-[10px] leading-tight text-fg"><span className="mr-1 font-mono text-muted">{task.id}</span>{task.short}</li>)}
-                </ul>
-              </div>
-            ))}
+        <div className="overflow-x-auto border-t border-border">
+          <table className="w-full min-w-[620px] border-collapse text-left text-[10px]" aria-label="MEP package task key">
+            <caption className="sr-only">Short-form task breakdown synchronized with the shared MEP progression</caption>
+            <thead>
+              <tr className="bg-surface-2 text-[9px] font-semibold uppercase tracking-wide text-muted">
+                <th scope="col" className="px-3 py-2 sm:px-4">Pkg</th>
+                <th scope="col" className="px-2 py-2">ID</th>
+                <th scope="col" className="px-2 py-2">Stg</th>
+                <th scope="col" className="px-2 py-2">Task</th>
+                <th scope="col" className="px-2 py-2 text-right sm:px-4">Sync</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(Object.entries(TASK_GROUPS) as [keyof typeof TASK_GROUPS, (typeof TASK_GROUPS)[keyof typeof TASK_GROUPS]][])
+                .filter(([code]) => pkg === "All" || (pkg === "Cold Water" && code === "CW") || (pkg === "Flush Water" && code === "FW") || (pkg === "Sanitary" && code === "SAN") || (pkg === "VO" && code === "VO"))
+                .flatMap(([code, group]) => group.tasks.map((task, index) => (
+                  <tr key={task.id} className="border-t border-border/70">
+                    <th scope="row" className="px-3 py-2 font-mono font-bold text-fg sm:px-4">{code}</th>
+                    <td className="px-2 py-2 font-mono text-muted">{task.id}</td>
+                    <td className="px-2 py-2 font-mono font-semibold text-muted" title={task.stage}>{STAGE_CODES[task.stage]}</td>
+                    <td className="max-w-[23rem] truncate px-2 py-2 text-fg" title={`${task.short} · ${group.logic}`}>{task.short}</td>
+                    {index === 0 ? <td rowSpan={group.tasks.length} className="px-2 py-2 text-right font-mono font-bold text-fg sm:px-4">{packageProgress(code) == null ? "—" : `${Math.round((packageProgress(code) ?? 0) * 100)}%`}</td> : null}
+                  </tr>
+                )))
+              }
+            </tbody>
+          </table>
         </div>
       </Card>
 
@@ -196,7 +235,7 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
                     title={item}
                     className="border-b border-l border-border bg-surface-2 px-1 py-2 text-center font-semibold leading-tight text-fg"
                   >
-                    <span className="block max-w-[5.5rem] whitespace-normal px-0.5 text-[9px] lg:max-w-[6.5rem] lg:text-[10px]">{item}</span>
+                    <span className="block max-w-[5.5rem] whitespace-normal px-0.5 font-mono text-[9px] lg:max-w-[6.5rem] lg:text-[10px]">{itemCode(item, report.items)}</span>
                   </th>
                 ))}
               </tr>
@@ -291,7 +330,7 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
                           )}
                           aria-label={`Tower ${t} level ${level} ${item}: ${v == null ? "not applicable" : `${Math.round(v * 100)} percent`}`}
                         >
-                          <span className="min-w-0 text-[11px] font-semibold leading-tight">{item}</span>
+                          <span className="min-w-0 font-mono text-[11px] font-semibold leading-tight" title={item}>{itemCode(item, report.items)}</span>
                           <span className="shrink-0 font-mono text-sm font-bold tabular-nums">{v == null ? "—" : `${Math.round(v * 100)}%`}</span>
                         </button>
                       );
