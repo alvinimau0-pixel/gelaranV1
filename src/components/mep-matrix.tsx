@@ -19,32 +19,32 @@ const LEGEND = [
 
 const REGISTER_LEVELS = ["13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "31M"] as const;
 const WORK_ITEM_REGISTER = [
-  ["Cold Water", "Incoming connection and meter", ""],
-  ["Cold Water", "Storage tanks and break tank", ""],
-  ["Cold Water", "Pumping main and distribution", ""],
-  ["Cold Water", "Booster pump, VSD and controls", "77%"],
-  ["Cold Water", "Valves, PRVs, gauges and backflow", ""],
-  ["Cold Water", "Sleeves, supports and fire stopping", ""],
-  ["Cold Water", "Flush, disinfect and sample", ""],
-  ["Flush Water", "Non-potable separation and labels", ""],
-  ["Flush Water", "FW tanks and break-tank link", ""],
-  ["Flush Water", "Booster pump and pressure tank", ""],
-  ["Flush Water", "Pumping main and floor distribution", "-"],
-  ["Flush Water", "Toilet flushing connections", ""],
-  ["Flush Water", "Backflow, flow and commissioning", ""],
-  ["Sanitary", "Soil, waste and vent risers", ""],
-  ["Sanitary", "Stacks and tenant branches", ""],
-  ["Sanitary", "Toilet distribution and hacking", "37%"],
-  ["Sanitary", "Floor traps, wastes and access", ""],
-  ["Sanitary", "Fixtures and sanitary wares", ""],
-  ["Sanitary", "Water, air and flow tests", ""],
-  ["Variation Orders", "Register instruction and affected scope", ""],
-  ["Variation Orders", "Revise tank and pipework drawings", ""],
-  ["Variation Orders", "FRP tank changes and rerouting", "-"],
-  ["Variation Orders", "Ladders, drains, overflows and sampling", ""],
-  ["Variation Orders", "VO testing and technical acceptance", ""],
-  ["Variation Orders", "Measure, claim and close valuation", ""],
-  ["Variation Orders", "Planter box (Irrigation)", ""],
+  ["Cold Water", "Water connection and meter", ""],
+  ["Cold Water", "Water tanks and break tank", ""],
+  ["Cold Water", "Main water pipework and distribution", ""],
+  ["Cold Water", "Booster pump and controls", "77%"],
+  ["Cold Water", "Valves, gauges and backflow protection", ""],
+  ["Cold Water", "Pipe sleeves, supports and fire stopping", ""],
+  ["Cold Water", "Flushing, disinfection and water sampling", ""],
+  ["Flush Water", "Flush-water separation and labels", ""],
+  ["Flush Water", "Flush-water tanks and tank connection", ""],
+  ["Flush Water", "Flush-water booster pump and pressure tank", ""],
+  ["Flush Water", "Flush-water main pipes and floor distribution", "-"],
+  ["Flush Water", "Toilet flushing pipe connections", ""],
+  ["Flush Water", "Flush-water testing and commissioning", ""],
+  ["Sanitary", "Toilet soil, waste and vent pipe risers", ""],
+  ["Sanitary", "Toilet stack pipes and branch outlets", ""],
+  ["Sanitary", "Toilet pipe outlets and wall hacking", "37%"],
+  ["Sanitary", "Floor traps, waste pipes and access points", ""],
+  ["Sanitary", "Toilet fixtures, sanitary ware and accessories", ""],
+  ["Sanitary", "Toilet drainage, water and air testing", ""],
+  ["Variation Orders", "Variation instruction and affected scope", ""],
+  ["Variation Orders", "Tank and pipework drawing revisions", ""],
+  ["Variation Orders", "Tank changes and pipe rerouting", "-"],
+  ["Variation Orders", "Tank accessories: ladders, drains and overflows", ""],
+  ["Variation Orders", "Variation testing and technical acceptance", ""],
+  ["Variation Orders", "Variation measurement, claim and close-out", ""],
+  ["Variation Orders", "Planter box irrigation pipework", ""],
 ] as const;
 
 function WorkItemRegister() {
@@ -74,7 +74,7 @@ function WorkItemRegister() {
             <thead>
               <tr className="bg-surface-2 text-[9px] font-semibold uppercase tracking-wide text-muted">
                 <th scope="col" className="sticky left-0 z-10 min-w-36 border-r border-border bg-surface-2 px-3 py-3">Package</th>
-                <th scope="col" className="min-w-72 px-3 py-3">Work Item</th>
+                <th scope="col" className="min-w-72 px-3 py-3">Scope / Work Item</th>
                 {REGISTER_LEVELS.map((level) => <th key={level} scope="col" className="min-w-12 border-l border-border px-2 py-2 text-center">{level}</th>)}
                 <th scope="col" className="min-w-24 border-l border-border px-3 py-3 text-right">Progress</th>
               </tr>
