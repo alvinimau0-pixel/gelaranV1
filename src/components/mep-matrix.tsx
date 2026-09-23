@@ -32,9 +32,9 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
   const towers: ("A" | "B")[] = view === "both" ? ["A", "B"] : [view];
   const validationIssues = validateProgression(report.progression, items);
   const packageProgress = (code: keyof typeof TASK_GROUPS) => {
-    const packageName = code === "CW" ? "Cold Water" : code === "FW" ? "Flush Water" : code === "SAN" ? "Sanitary" : null;
+    const packageName = code === "CW" ? "Cold Water" : code === "FW" ? "Flush Water" : code === "SAN" ? "Sanitary" : code === "VO" ? "VO" : null;
     if (!packageName) return null;
-    const packageItems = report.items.filter((item) => ITEM_META[item]?.package === packageName);
+    const packageItems = report.items.filter((item) => ITEM_META[item]?.package === packageName || (packageName === "VO" && ITEM_META[item]?.package === "Irrigation"));
     const values = (["A", "B"] as const).flatMap((t) => report.progression[t].flatMap((row) => packageItems.map((item) => row.items[item] ?? null))).filter((value): value is number => value != null);
     return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
   };
@@ -399,7 +399,7 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
                 <X className="size-4" aria-hidden="true" />
               </button>
             </div>
-            <div className="mt-3 flex flex-wrap gap-2"><Badge tone="accent">{detail.meta?.package}</Badge></div>
+            <div className="mt-3 flex flex-wrap gap-2"><Badge tone="accent">{detail.meta?.package === "Irrigation" ? "Variation Orders · Irrigation" : detail.meta?.package}</Badge></div>
             <p className="mt-4 text-sm text-muted">{detail.meta?.detail}</p>
             <div className="mt-5 rounded-xl border border-accent/30 bg-accent/5 p-3">
               <div className="flex items-end gap-3">

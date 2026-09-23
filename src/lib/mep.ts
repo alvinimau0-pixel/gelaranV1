@@ -35,13 +35,18 @@ export const TASK_GROUPS: Record<TaskPackage, { label: string; logic: string; ta
     { id: "SAN-05", stage: "Installation", short: "Fixtures and sanitary wares" },
     { id: "SAN-06", stage: "Testing", short: "Water, air and flow tests" },
   ] },
-  VO: { label: "Variation Orders", logic: "Track by instruction, design, approval, installation, acceptance and valuation.", tasks: [
+  VO: { label: "Variation Orders + Irrigation", logic: "Track variation orders and irrigation scope by instruction, design, approval, installation, acceptance and valuation.", tasks: [
     { id: "VO-01", stage: "Commercial", short: "Register instruction and affected scope" },
     { id: "VO-02", stage: "Coordination", short: "Revise tank and pipework drawings" },
     { id: "VO-03", stage: "Installation", short: "FRP tank changes and rerouting" },
     { id: "VO-04", stage: "Installation", short: "Ladders, drains, overflows and sampling" },
     { id: "VO-05", stage: "Testing", short: "VO testing and technical acceptance" },
     { id: "VO-06", stage: "Commercial", short: "Measure, claim and close valuation" },
+    { id: "IRR-01", stage: "Installation", short: "Irrigation pipework and outlets — NKVE zone" },
+    { id: "IRR-02", stage: "Installation", short: "Irrigation pipework and outlets — LBU zone" },
+    { id: "IRR-03", stage: "Installation", short: "Irrigation pipework and outlets — Residential zone" },
+    { id: "IRR-04", stage: "Installation", short: "Irrigation pipework and outlets — Tamil School zone" },
+    { id: "IRR-05", stage: "Testing", short: "Irrigation control cabling and panel" },
   ] },
 };
 
@@ -166,10 +171,11 @@ export const ITEM_META: Record<
   },
 };
 
-export const PACKAGES = ["All", "Cold Water", "Flush Water", "Sanitary", "Irrigation", "VO"] as const;
+export const PACKAGES = ["All", "Cold Water", "Flush Water", "Sanitary", "VO"] as const;
 
 export function itemsForPackage(pkg: (typeof PACKAGES)[number]) {
   if (pkg === "All") return report.items;
+  if (pkg === "VO") return report.items.filter((i) => ITEM_META[i]?.package === "VO" || ITEM_META[i]?.package === "Irrigation");
   return report.items.filter((i) => ITEM_META[i]?.package === pkg);
 }
 
