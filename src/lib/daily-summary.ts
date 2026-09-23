@@ -80,6 +80,11 @@ export async function buildDailySummary(date?: string): Promise<DailySummary> {
   const summaryDateValue = summaryDate(date);
   const sql = await getSql();
   await sql`
+    update attendance
+    set check_in = coalesce(check_in, '08:00'), check_out = coalesce(check_out, '19:00'), updated_at = now()
+    where attendance_date = ${summaryDateValue} and status = 'Present'
+  `;
+  await sql`
     insert into attendance (worker_id, attendance_date, status, check_in, check_out)
     select id, ${summaryDateValue}, 'Present', '08:00', '19:00'
     from workers where active = true
