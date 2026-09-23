@@ -24,6 +24,7 @@ export type Worker = {
   trade: string | null;
   team: string | null;
   subcontractor: string | null;
+  workerType: "Direct" | "Subcontractor";
   phone: string | null;
   photoUrl: string | null;
   active: boolean;
@@ -72,6 +73,7 @@ function fallbackWorkers(): Worker[] {
     trade: "GENERAL WORKER",
     team: teamByName.get(person.name) ?? null,
     subcontractor: null,
+    workerType: "Direct",
     phone: null,
     photoUrl: null,
     active: true,
@@ -111,10 +113,11 @@ export const listWorkers = createServerFn({ method: "GET" }).handler(async (): P
       trade: string | null;
       team: string | null;
       subcontractor: string | null;
+      worker_type: "Direct" | "Subcontractor" | null;
       phone: string | null;
       photo_url: string | null;
       active: boolean;
-    }>`select id, employee_code, name, trade, team, subcontractor, phone, photo_url, active
+    }>`select id, employee_code, name, trade, team, subcontractor, worker_type, phone, photo_url, active
        from workers where active = true order by name asc`;
     return rows.map((r) => ({
       id: r.id,
@@ -123,6 +126,7 @@ export const listWorkers = createServerFn({ method: "GET" }).handler(async (): P
       trade: r.trade,
       team: r.team,
       subcontractor: r.subcontractor,
+      workerType: r.worker_type === "Subcontractor" ? "Subcontractor" : "Direct",
       phone: r.phone,
       photoUrl: r.photo_url,
       active: r.active,
@@ -147,6 +151,40 @@ export const listAttendanceForMonth = createServerFn({ method: "GET" })
       console.error("[attendance] attendance store unavailable; showing blank register", error);
       return [];
     }
+  });
+
+export const ensureAttendanceThroughToday = createServerFn({ method: "POST" })
+  .validator(z.object({ year: z.number().int(), month: z.number().int().min(1).max(12), throughDay: z.number().int().min(1).max(31) }))
+  .handler(async ({ data }): Promise<{ ok: true; inserted: number }> => {
+    await seedWorkersIfEmpty();
+    const sql = await getSql();
+    const dateFrom = `${data.year}-${String(data.month).padStart(2, "0")}-01`;
+    const dateTo = `${data.year}-${String(data.month).padStart(2, "0")}-${String(data.throughDay).padStart(2, "0")}`;
+    const result = await sql<{ id: number }>`
+      insert into attendance (worker_id, attendance_date, status)
+      select w.id, d::date, 'Present'
+      from workers w
+      cross join generate_series(${dateFrom}::date, ${dateTo}::date, interval '1 day') d
+      where w.active = true
+      on conflict (worker_id, attendance_date) do nothing
+      returning id
+    `;
+    return { ok: true, inserted: result.length };
+  });
+
+export const setWorkerType = createServerFn({ method: "POST" })
+  .validator(z.object({ workerId: z.number().int(), workerType: z.enum(["Direct", "Subcontractor"]) }))
+  .handler(async ({ data }): Promise<{ ok: true }> => {
+    const sql = await getSql();
+    await sql`update workers set worker_type = ${data.workerType}, updated_at = now() where id = ${data.workerId}`;
+    await recordAuditEvent(sql, {
+      action: "worker.type_updated",
+      entityType: "worker",
+      entityId: data.workerId,
+      summary: `Classified worker ${data.workerId} as ${data.workerType}`,
+      details: data,
+    });
+    return { ok: true };
   });
 
 export const setAttendance = createServerFn({ method: "POST" })
@@ -292,6 +330,7 @@ export const addWorker = createServerFn({ method: "POST" })
       trade: string | null;
       team: string | null;
       subcontractor: string | null;
+      worker_type: "Direct" | "Subcontractor" | null;
       phone: string | null;
       photo_url: string | null;
       active: boolean;
@@ -304,7 +343,7 @@ export const addWorker = createServerFn({ method: "POST" })
         subcontractor = coalesce(excluded.subcontractor, workers.subcontractor),
         active = true,
         updated_at = now()
-      returning id, employee_code, name, trade, team, subcontractor, phone, photo_url, active
+      returning id, employee_code, name, trade, team, subcontractor, worker_type, phone, photo_url, active
     `;
     await recordAuditEvent(sql, {
       action: "worker.upserted",
@@ -322,6 +361,7 @@ export const addWorker = createServerFn({ method: "POST" })
         trade: row.trade,
         team: row.team,
         subcontractor: row.subcontractor,
+        workerType: row.worker_type === "Subcontractor" ? "Subcontractor" : "Direct",
         phone: row.phone,
         photoUrl: row.photo_url,
         active: row.active,

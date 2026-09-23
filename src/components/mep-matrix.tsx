@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { X } from "lucide-react";
 import { useAppStore } from "@/lib/store";
@@ -98,6 +98,10 @@ function WorkItemRegister() {
 
 export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
   if (!tower) return <WorkItemRegister />;
+  return <EditableMepMatrix tower={tower} />;
+}
+
+function EditableMepMatrix({ tower }: { tower: "A" | "B" }) {
   const report = useAppStore((s) => s.report);
   const [pkg, setPkg] = useState<(typeof PACKAGES)[number]>("All");
   const [sel, setSel] = useState<Sel | null>(null);
@@ -125,14 +129,17 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
     return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
   };
 
-  const detail = sel
-    ? {
-        meta: ITEM_META[sel.item],
-        a: report.progression.A.find((r) => r.level === sel.level)?.items[sel.item] ?? null,
-        b: report.progression.B.find((r) => r.level === sel.level)?.items[sel.item] ?? null,
-        mats: relatedMaterial(sel.item),
-      }
-    : null;
+  const detail = useMemo(
+    () => sel
+      ? {
+          meta: ITEM_META[sel.item],
+          a: report.progression.A.find((r) => r.level === sel.level)?.items[sel.item] ?? null,
+          b: report.progression.B.find((r) => r.level === sel.level)?.items[sel.item] ?? null,
+          mats: relatedMaterial(sel.item),
+        }
+      : null,
+    [sel, report.progression],
+  );
 
   useEffect(() => {
     if (!sel || !detail) {
@@ -142,7 +149,7 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
     const current = sel.tower === "A" ? detail.a : detail.b;
     setDraftPercent(current == null ? "0" : String(Math.round(current * 100)));
     setSaveError(null);
-  }, [sel, detail?.a, detail?.b]);
+  }, [sel, detail]);
 
   const selectCell = (t: "A" | "B", level: string, item: string) =>
     setSel({ tower: t, level, item });

@@ -6,6 +6,9 @@ import { cn } from "@/lib/utils";
 import {
   listWorkers,
   listAttendanceForMonth,
+  ensureAttendanceThroughToday,
+  setAttendance,
+  setWorkerType,
   todayInKualaLumpur,
   daysInMonth,
   weekdayOf,
@@ -34,6 +37,7 @@ function Manpower() {
   const today = useMemo(() => todayInKualaLumpur(), []);
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [map, setMap] = useState<Record<string, Mark>>({});
+  const [savingKey, setSavingKey] = useState<string | null>(null);
 
   const days = useMemo(
     () => Array.from({ length: daysInMonth(today.year, today.month) }, (_, i) => i + 1),
@@ -44,6 +48,7 @@ function Manpower() {
     let cancelled = false;
     const loadAttendance = async () => {
       try {
+        await ensureAttendanceThroughToday({ data: { year: today.year, month: today.month, throughDay: today.day } });
         const [w, a] = await Promise.all([
           listWorkers(),
           listAttendanceForMonth({ data: { year: today.year, month: today.month } }),
@@ -67,7 +72,10 @@ function Manpower() {
       cancelled = true;
       window.removeEventListener("gelaran:attendance-updated", onAttendanceUpdated);
     };
-  }, [today.year, today.month]);
+  }, [today.year, today.month, today.day]);
+
+  const directWorkers = workers.filter((worker) => worker.workerType === "Direct");
+  const subcontractorWorkers = workers.filter((worker) => worker.workerType === "Subcontractor");
 
   const presentToday = workers.filter((w) => (map[key(w.id, today.day)] ?? "") === "P").length;
   const absentToday = workers.filter((w) => (map[key(w.id, today.day)] ?? "") === "A").length;
@@ -78,6 +86,34 @@ function Manpower() {
     let n = 0;
     for (const d of days) if ((map[key(workerId, d)] ?? "") === mark) n += 1;
     return n;
+  }
+
+  function dateForDay(day: number) {
+    return `${today.year}-${String(today.month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  }
+
+  async function cycleAttendance(workerId: number, day: number) {
+    if (day > today.day) return;
+    const current = map[key(workerId, day)] ?? "";
+    const next: Mark = current === "P" ? "A" : current === "A" ? "L" : current === "L" ? "O" : current === "O" ? "" : "P";
+    const status = next === "P" ? "Present" : next === "A" ? "Absent" : next === "L" ? "Leave" : next === "O" ? "Off" : null;
+    const cellKey = key(workerId, day);
+    setSavingKey(cellKey);
+    setMap((previous) => ({ ...previous, [cellKey]: next }));
+    try {
+      await setAttendance({ data: { workerId, date: dateForDay(day), status } });
+      window.dispatchEvent(new Event("gelaran:attendance-updated"));
+    } catch (error) {
+      console.error("[manpower] attendance save failed:", error);
+      setMap((previous) => ({ ...previous, [cellKey]: current }));
+    } finally {
+      setSavingKey(null);
+    }
+  }
+
+  async function changeWorkerType(workerId: number, workerType: "Direct" | "Subcontractor") {
+    await setWorkerType({ data: { workerId, workerType } });
+    setWorkers((previous) => previous.map((worker) => worker.id === workerId ? { ...worker, workerType } : worker));
   }
 
   const monthLabel = new Date(Date.UTC(today.year, today.month - 1, 1)).toLocaleDateString("en-US", {
@@ -120,7 +156,7 @@ function Manpower() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium leading-snug">{w.name}</p>
-                  <p className="truncate text-[11px] text-muted">{w.team ?? "Unassigned"}</p>
+                  <p className="truncate text-[11px] text-muted">{w.team ?? "Unassigned"} · {w.workerType}</p>
                 </div>
                 <span className={cn("flex h-8 w-10 shrink-0 items-center justify-center rounded-md text-sm font-semibold sm:h-9 sm:w-12", TONE[mark])}>
                   {mark || "·"}
@@ -128,6 +164,27 @@ function Manpower() {
               </div>
             );
           })}
+        </div>
+      </Card>
+
+      <Card>
+        <div className="mb-3 flex flex-wrap items-end justify-between gap-2 sm:mb-4">
+          <div>
+            <h2 className="font-display text-base font-semibold sm:text-lg">Manpower split</h2>
+            <p className="mt-1 text-xs text-muted">Correct the classification below; totals and attendance stay synchronized.</p>
+          </div>
+          <div className="flex gap-2 text-xs font-semibold"><span className="rounded-full bg-accent/15 px-2.5 py-1 text-accent">Direct {directWorkers.length}</span><span className="rounded-full bg-blue-500/15 px-2.5 py-1 text-blue-700">Subcontractor {subcontractorWorkers.length}</span></div>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {workers.map((worker) => (
+            <label key={worker.id} className="flex items-center justify-between gap-3 rounded-lg border border-border bg-surface-2 px-3 py-2.5">
+              <span className="min-w-0"><span className="block truncate text-sm font-medium">{worker.name}</span><span className="block truncate text-[11px] text-muted">{worker.subcontractor ?? worker.team ?? "Unassigned"}</span></span>
+              <select value={worker.workerType} onChange={(event) => void changeWorkerType(worker.id, event.target.value as "Direct" | "Subcontractor")} className="min-h-9 rounded-md border border-border bg-surface px-2 text-xs font-semibold">
+                <option value="Direct">Direct worker</option>
+                <option value="Subcontractor">Subcontractor</option>
+              </select>
+            </label>
+          ))}
         </div>
       </Card>
 
@@ -149,7 +206,7 @@ function Manpower() {
       <Card className="p-0">
         <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5 sm:px-4 sm:py-3">
           <h2 className="font-display text-base font-semibold sm:text-lg">{monthLabel} register</h2>
-          <p className="text-[10px] text-muted sm:text-xs">P present · A absent · L leave · O off</p>
+          <p className="text-[10px] text-muted sm:text-xs">Click a past/today cell to cycle P → A → L → O → blank</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] border-collapse text-center text-[10px] sm:min-w-[900px] sm:text-xs">
@@ -184,22 +241,26 @@ function Manpower() {
             <tbody>
               {workers.map((w) => (
                 <tr key={w.id}>
-                  <th scope="row" className="sticky left-0 bg-surface px-2 py-0.5 text-left text-[11px] font-medium sm:px-3 sm:py-1 sm:text-xs">
-                    {w.name}
+                  <th scope="row" className="sticky left-0 z-[1] bg-surface px-2 py-0.5 text-left text-[11px] font-medium sm:px-3 sm:py-1 sm:text-xs">
+                    <span className="block">{w.name}</span><span className="text-[9px] font-normal text-muted">{w.workerType === "Direct" ? "Direct" : "Sub"}</span>
                   </th>
                   {days.map((d) => {
                     const m = map[key(w.id, d)] ?? "";
                     return (
                       <td key={d} aria-label={`${w.name} day ${d} ${m || "blank"}`} className="p-0.5">
-                        <span
+                        <button
+                          type="button"
+                          onClick={() => void cycleAttendance(w.id, d)}
+                          disabled={d > today.day || savingKey === key(w.id, d)}
+                          title={d > today.day ? "Future date" : "Edit attendance"}
                           className={cn(
-                            "flex h-6 w-full items-center justify-center rounded-xs font-medium sm:h-8",
+                            "flex h-6 w-full items-center justify-center rounded-xs font-medium transition-colors hover:ring-2 hover:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-50 sm:h-8",
                             TONE[m],
                             d === today.day && "ring-1 ring-ink/30",
                           )}
                         >
                           {m || "·"}
-                        </span>
+                        </button>
                       </td>
                     );
                   })}
