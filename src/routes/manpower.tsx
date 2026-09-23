@@ -15,6 +15,7 @@ import {
   type Worker,
   type AttendanceStatus,
 } from "@/lib/attendance";
+import { getAccessRole, type AccessRole } from "@/lib/auth/roles";
 
 export const Route = createFileRoute("/manpower")({ component: Manpower });
 
@@ -54,11 +55,17 @@ function Manpower() {
   const [map, setMap] = useState<Record<string, Mark>>({});
   const [timeMap, setTimeMap] = useState<Record<string, AttendanceTime>>({});
   const [savingKey, setSavingKey] = useState<string | null>(null);
+  const [access, setAccess] = useState<AccessRole>({ authenticated: false, role: "viewer" });
+  const canEdit = access.role === "supervisor";
 
   const days = useMemo(
     () => Array.from({ length: daysInMonth(today.year, today.month) }, (_, i) => i + 1),
     [today.year, today.month],
   );
+
+  useEffect(() => {
+    void getAccessRole().then(setAccess).catch((error) => console.error("[manpower] role load failed:", error));
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -112,7 +119,7 @@ function Manpower() {
   }
 
   async function cycleAttendance(workerId: number, day: number) {
-    if (day > today.day) return;
+    if (!canEdit || day > today.day) return;
     const cellKey = key(workerId, day);
     const current = map[cellKey] ?? "";
     const currentTime = timeMap[cellKey];
@@ -135,6 +142,7 @@ function Manpower() {
   }
 
   async function changeWorkerType(workerId: number, workerType: "Direct" | "Subcontractor") {
+    if (!canEdit) return;
     await setWorkerType({ data: { workerId, workerType } });
     setWorkers((previous) => previous.map((worker) => worker.id === workerId ? { ...worker, workerType } : worker));
   }
@@ -150,7 +158,7 @@ function Manpower() {
       <div>
         <h1 className="font-display text-2xl font-semibold sm:text-3xl">Attendance</h1>
         <p className="mt-1 text-xs text-muted sm:text-sm">
-          {today.iso} (Malaysia time) · Use Groq Operator to mark attendance.
+          {today.iso} (Malaysia time) · {canEdit ? "Supervisor editing enabled." : "Read-only view — supervisor access is required to edit."}
         </p>
       </div>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
@@ -162,7 +170,7 @@ function Manpower() {
 
       <Card>
         <h2 className="mb-3 font-display text-base font-semibold sm:mb-4 sm:text-lg">Worker directory</h2>
-        <p className="mb-3 text-xs text-muted">Attendance changes are authorized through Groq Operator.</p>
+        <p className="mb-3 text-xs text-muted">{canEdit ? "Attendance changes and manpower classification are enabled for supervisors." : "Attendance symbols and manpower classification are locked. Sign in with a supervisor account to edit."}</p>
         <div className="grid gap-2 sm:grid-cols-2 sm:gap-3 lg:grid-cols-3">
           {workers.map((w) => {
             const mark = map[key(w.id, today.day)] ?? "";
@@ -202,7 +210,7 @@ function Manpower() {
           {workers.map((worker) => (
             <label key={worker.id} className="flex items-center justify-between gap-3 rounded-lg border border-border bg-surface-2 px-3 py-2.5">
               <span className="min-w-0"><span className="block truncate text-sm font-medium">{worker.name}</span><span className="block truncate text-[11px] text-muted">{worker.subcontractor ?? worker.team ?? "Unassigned"}</span></span>
-              <select value={worker.workerType} onChange={(event) => void changeWorkerType(worker.id, event.target.value as "Direct" | "Subcontractor")} className="min-h-9 rounded-md border border-border bg-surface px-2 text-xs font-semibold">
+              <select disabled={!canEdit} value={worker.workerType} onChange={(event) => void changeWorkerType(worker.id, event.target.value as "Direct" | "Subcontractor")} className="min-h-9 rounded-md border border-border bg-surface px-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-60">
                 <option value="Direct">Direct worker</option>
                 <option value="Subcontractor">Subcontractor</option>
               </select>
@@ -275,8 +283,8 @@ function Manpower() {
                         <button
                           type="button"
                           onClick={() => void cycleAttendance(w.id, d)}
-                          disabled={d > today.day || savingKey === key(w.id, d)}
-                          title={d > today.day ? "Future date" : "Edit attendance time or status"}
+                          disabled={!canEdit || d > today.day || savingKey === key(w.id, d)}
+                          title={!canEdit ? "Supervisor access required" : d > today.day ? "Future date" : "Edit attendance time or status"}
                           className={cn(
                             "flex h-7 min-w-12 w-full items-center justify-center rounded-xs px-0.5 text-[9px] font-medium leading-none transition-colors hover:ring-2 hover:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-50 sm:h-8 sm:min-w-14 sm:text-[10px]",
                             TONE[m],
