@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { X } from "lucide-react";
 import { useAppStore } from "@/lib/store";
-import { ITEM_META, PACKAGES, TASK_GROUPS, cellTone, itemsForPackage, normalizeProgress, relatedMaterial, validateProgression } from "@/lib/mep";
+import { computePackageProgress, ITEM_META, PACKAGES, TASK_GROUPS, cellTone, itemsForPackage, normalizeProgress, relatedMaterial, validateProgression } from "@/lib/mep";
+import { setItemRange } from "@/lib/progression";
 import { Badge, Card, Meter } from "@/components/ui";
 import { cn, pct } from "@/lib/utils";
 
@@ -16,28 +17,13 @@ const LEGEND = [
   { label: "N/A", range: "—", className: "bg-slate-200 ring-1 ring-inset ring-slate-300" },
 ];
 
-const PACKAGE_CODES: Record<(typeof PACKAGES)[number], string> = {
-  All: "ALL",
-  "Cold Water": "CW",
-  "Flush Water": "FW",
-  Sanitary: "SAN",
-  Irrigation: "IRR",
-  VO: "VO",
-};
-
-const STAGE_CODES = { Coordination: "CO", Installation: "IN", Testing: "TE", Commissioning: "CM", Commercial: "VO" } as const;
-
-function itemCode(item: string, allItems: string[]) {
-  const pkg = ITEM_META[item]?.package;
-  const prefix = pkg === "Cold Water" ? "CW" : pkg === "Flush Water" ? "FW" : pkg === "Sanitary" ? "SAN" : pkg === "Irrigation" ? "IRR" : "VO";
-  const packageItems = allItems.filter((candidate) => ITEM_META[candidate]?.package === pkg);
-  return `${prefix}-${String(Math.max(1, packageItems.indexOf(item) + 1)).padStart(2, "0")}`;
-}
-
 export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
   const report = useAppStore((s) => s.report);
   const [pkg, setPkg] = useState<(typeof PACKAGES)[number]>("All");
   const [sel, setSel] = useState<Sel | null>(null);
+  const [draftPercent, setDraftPercent] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [view, setView] = useState<"both" | "A" | "B">(tower ?? "both");
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const drawerRef = useRef<HTMLElement | null>(null);
@@ -68,8 +54,56 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
       }
     : null;
 
+  useEffect(() => {
+    if (!sel || !detail) {
+      setDraftPercent("");
+      return;
+    }
+    const current = sel.tower === "A" ? detail.a : detail.b;
+    setDraftPercent(current == null ? "0" : String(Math.round(current * 100)));
+    setSaveError(null);
+  }, [sel, detail?.a, detail?.b]);
+
   const selectCell = (t: "A" | "B", level: string, item: string) =>
     setSel({ tower: t, level, item });
+
+  async function saveCell() {
+    if (!sel) return;
+    const percent = Number(draftPercent);
+    if (!Number.isFinite(percent) || percent < 0 || percent > 100) {
+      setSaveError("Enter a percentage from 0 to 100.");
+      return;
+    }
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const result = await setItemRange({
+        data: {
+          tower: sel.tower,
+          item: sel.item,
+          levelFrom: Number(sel.level),
+          levelTo: Number(sel.level),
+          value: percent / 100,
+        },
+      });
+      const pkgs = computePackageProgress(result.progression);
+      const store = useAppStore.getState();
+      store.updateReport({ progression: result.progression });
+      store.updateSite({
+        coldWater: pkgs.coldWater,
+        sanitary: pkgs.sanitary,
+        irrigation: pkgs.irrigation,
+        overall: pkgs.overall,
+      });
+      window.dispatchEvent(new Event("gelaran:progression-updated"));
+      setSel(null);
+    } catch (error) {
+      console.error("[mep-matrix] save failed", error);
+      setSaveError("Could not save this percentage. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   useEffect(() => {
     if (!sel) return;
@@ -155,8 +189,7 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
               )}
               title={p}
             >
-            <span aria-hidden="true">{PACKAGE_CODES[p]}</span>
-            <span className="sr-only">{p}</span>
+            {p}
             </button>
         ))}
       </div>
@@ -164,21 +197,20 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
       <Card className="p-0">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="px-3 pt-3 text-xs font-semibold uppercase tracking-wide text-muted sm:px-4 sm:pt-4">Task key</p>
-            <h2 className="px-3 pb-3 pt-1 font-display text-base font-semibold text-fg sm:px-4 sm:pb-4">CW · FW · SAN · VO</h2>
+            <p className="px-3 pt-3 text-xs font-semibold uppercase tracking-wide text-muted sm:px-4 sm:pt-4">Work item register</p>
+            <h2 className="px-3 pb-3 pt-1 font-display text-base font-semibold text-fg sm:px-4 sm:pb-4">Full scope and package progress</h2>
           </div>
-          <span className="mr-3 mt-3 rounded-full bg-accent/10 px-2.5 py-1 font-mono text-[10px] font-semibold text-accent sm:mr-4 sm:mt-4">{PACKAGE_CODES[pkg]}</span>
+              <span className="mr-3 mt-3 rounded-full bg-accent/10 px-2.5 py-1 text-[10px] font-semibold text-accent sm:mr-4 sm:mt-4">{pkg}</span>
         </div>
         <div className="overflow-x-auto border-t border-border">
           <table className="w-full min-w-[620px] border-collapse text-left text-[10px]" aria-label="MEP package task key">
-            <caption className="sr-only">Short-form task breakdown synchronized with the shared MEP progression</caption>
+            <caption className="sr-only">Full-name task breakdown synchronized with the shared MEP progression</caption>
             <thead>
               <tr className="bg-surface-2 text-[9px] font-semibold uppercase tracking-wide text-muted">
-                <th scope="col" className="px-3 py-2 sm:px-4">Pkg</th>
-                <th scope="col" className="px-2 py-2">ID</th>
-                <th scope="col" className="px-2 py-2">Stg</th>
-                <th scope="col" className="px-2 py-2">Task</th>
-                <th scope="col" className="px-2 py-2 text-right sm:px-4">Sync</th>
+                <th scope="col" className="px-3 py-2 sm:px-4">Package</th>
+                <th scope="col" className="px-2 py-2">Stage</th>
+                <th scope="col" className="px-2 py-2">Work item</th>
+                <th scope="col" className="px-2 py-2 text-right sm:px-4">Progress</th>
               </tr>
             </thead>
             <tbody>
@@ -186,10 +218,9 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
                 .filter(([code]) => pkg === "All" || (pkg === "Cold Water" && code === "CW") || (pkg === "Flush Water" && code === "FW") || (pkg === "Sanitary" && code === "SAN") || (pkg === "VO" && code === "VO"))
                 .flatMap(([code, group]) => group.tasks.map((task, index) => (
                   <tr key={task.id} className="border-t border-border/70">
-                    <th scope="row" className="px-3 py-2 font-mono font-bold text-fg sm:px-4">{code}</th>
-                    <td className="px-2 py-2 font-mono text-muted">{task.id}</td>
-                    <td className="px-2 py-2 font-mono font-semibold text-muted" title={task.stage}>{STAGE_CODES[task.stage]}</td>
-                    <td className="max-w-[23rem] truncate px-2 py-2 text-fg" title={`${task.short} · ${group.logic}`}>{task.short}</td>
+                    <th scope="row" className="px-3 py-2 font-semibold text-fg sm:px-4">{group.label}</th>
+                    <td className="px-2 py-2 text-muted">{task.stage}</td>
+                    <td className="max-w-[23rem] px-2 py-2 text-fg" title={group.logic}>{task.short}</td>
                     {index === 0 ? <td rowSpan={group.tasks.length} className="px-2 py-2 text-right font-mono font-bold text-fg sm:px-4">{packageProgress(code) == null ? "—" : `${Math.round((packageProgress(code) ?? 0) * 100)}%`}</td> : null}
                   </tr>
                 )))
@@ -206,7 +237,7 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
           {validationIssues.length ? `${validationIssues.length} invalid cells` : "All cells valid"}
         </span>
         <span className="h-4 w-px bg-border" aria-hidden="true" />
-        <span className="font-semibold text-fg">Progress key</span>
+        <span className="font-semibold text-fg">Progress key · select any cell to edit</span>
         {LEGEND.map((entry) => (
           <span key={entry.label} className="inline-flex items-center gap-1.5 whitespace-nowrap" title={`${entry.label}: ${entry.range}`}>
             <span className={cn("size-2.5 rounded-full shadow-sm", entry.className)} aria-hidden="true" />
@@ -235,7 +266,7 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
                     title={item}
                     className="border-b border-l border-border bg-surface-2 px-1 py-2 text-center font-semibold leading-tight text-fg"
                   >
-                    <span className="block max-w-[5.5rem] whitespace-normal px-0.5 font-mono text-[9px] lg:max-w-[6.5rem] lg:text-[10px]">{itemCode(item, report.items)}</span>
+                    <span className="block max-w-[8rem] whitespace-normal px-0.5 text-[9px] leading-tight lg:max-w-[10rem] lg:text-[10px]">{item}</span>
                   </th>
                 ))}
               </tr>
@@ -330,7 +361,7 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
                           )}
                           aria-label={`Tower ${t} level ${level} ${item}: ${v == null ? "not applicable" : `${Math.round(v * 100)} percent`}`}
                         >
-                          <span className="min-w-0 font-mono text-[11px] font-semibold leading-tight" title={item}>{itemCode(item, report.items)}</span>
+                          <span className="min-w-0 text-[11px] font-semibold leading-tight" title={item}>{item}</span>
                           <span className="shrink-0 font-mono text-sm font-bold tabular-nums">{v == null ? "—" : `${Math.round(v * 100)}%`}</span>
                         </button>
                       );
@@ -370,6 +401,37 @@ export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
             </div>
             <div className="mt-3 flex flex-wrap gap-2"><Badge tone="accent">{detail.meta?.package}</Badge></div>
             <p className="mt-4 text-sm text-muted">{detail.meta?.detail}</p>
+            <div className="mt-5 rounded-xl border border-accent/30 bg-accent/5 p-3">
+              <div className="flex items-end gap-3">
+                <label className="min-w-0 flex-1">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-muted">Edit {sel.tower} · Level {sel.level}</span>
+                  <div className="mt-1 flex items-center gap-2">
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="1"
+                      inputMode="numeric"
+                      value={draftPercent}
+                      onChange={(event) => setDraftPercent(event.target.value)}
+                      className="min-h-11 w-full rounded-lg border border-border bg-surface px-3 font-mono text-lg font-semibold tabular-nums outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
+                      aria-label={`Edit Tower ${sel.tower} level ${sel.level} ${sel.item} percentage`}
+                    />
+                    <span className="font-mono text-lg font-semibold text-muted">%</span>
+                  </div>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => void saveCell()}
+                  disabled={saving}
+                  className="min-h-11 rounded-lg bg-ink px-4 text-sm font-semibold text-accent-fg disabled:cursor-wait disabled:opacity-60"
+                >
+                  {saving ? "Saving…" : "Save"}
+                </button>
+              </div>
+              <p className="mt-2 text-[11px] text-muted">Save updates this tower and level in the shared matrix for every device.</p>
+              {saveError ? <p role="alert" className="mt-2 text-xs font-medium text-bad">{saveError}</p> : null}
+            </div>
             <div className="mt-5 grid grid-cols-2 gap-3">
               <div className="rounded-lg border border-border p-3"><p className="text-xs text-muted">Tower A</p><p className="mt-1 font-display text-lg font-semibold tabular-nums">{pct(detail.a)}</p><div className="mt-2"><Meter value={detail.a ?? 0} /></div></div>
               <div className="rounded-lg border border-border p-3"><p className="text-xs text-muted">Tower B</p><p className="mt-1 font-display text-lg font-semibold tabular-nums">{pct(detail.b)}</p><div className="mt-2"><Meter value={detail.b ?? 0} /></div></div>
