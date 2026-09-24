@@ -141,3 +141,53 @@
 .table-clear .sticky-col {
   box-shadow: 2px 0 8px rgba(15, 23, 36, 0.04);
 }
+
+/* Responsive wide tables: keep dense data usable without breaking the page. */
+.responsive-scroll {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: #c7d1df transparent;
+}
+
+.responsive-scroll::after {
+  position: absolute;
+  right: 0.5rem;
+  top: 0.5rem;
+  display: none;
+  border-radius: 999px;
+  background: rgba(11, 18, 32, 0.78);
+  color: white;
+  content: "Swipe →";
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 0.25rem 0.5rem;
+  pointer-events: none;
+}
+
+.responsive-table .sticky-col {
+  box-shadow: 2px 0 8px rgba(15, 23, 36, 0.08);
+}
+
+@media (max-width: 639px) {
+  .responsive-scroll::after {
+    display: block;
+  }
+
+  .responsive-table th,
+  .responsive-table td {
+    white-space: nowrap;
+  }
+
+  .responsive-table .sticky-col {
+    white-space: normal;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+  .responsive-table th,
+  .responsive-table td {
+    padding-top: 0.625rem;
+    padding-bottom: 0.625rem;
+  }
+}

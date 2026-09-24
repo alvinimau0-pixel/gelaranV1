@@ -62,14 +62,14 @@ function CombinedProgressDashboard() {
           </div>
         ))}
       </div>
-      <div className="mt-4 overflow-x-auto rounded-xl border border-border">
-        <table className="table-clear w-full min-w-[700px] border-collapse text-left text-xs" aria-label="Tower A and Tower B combined MEP progress">
-          <thead><tr><th className="px-3 py-2">Work Item</th><th className="px-3 py-2">Package</th><th className="px-3 py-2 text-right">Tower A</th><th className="px-3 py-2 text-right">Tower B</th><th className="px-3 py-2 text-right">Combined</th></tr></thead>
+      <div className="responsive-scroll relative mt-4 overflow-x-auto rounded-xl border border-border">
+        <table className="responsive-table table-clear w-full min-w-[640px] border-collapse text-left text-xs sm:min-w-[700px]" aria-label="Tower A and Tower B combined MEP progress">
+          <thead><tr><th className="sticky-col sticky left-0 z-10 min-w-48 px-2 py-2 sm:px-3">Work Item</th><th className="px-2 py-2 sm:px-3">Package</th><th className="px-2 py-2 text-right sm:px-3">Tower A</th><th className="px-2 py-2 text-right sm:px-3">Tower B</th><th className="px-2 py-2 text-right sm:px-3">Combined</th></tr></thead>
           <tbody>{visibleItems.map((item) => {
             const a = itemProgress("A", item);
             const b = itemProgress("B", item);
             const combined = average([a, b]);
-            return <tr key={item} className="border-t border-border/70"><th scope="row" className="px-3 py-2.5 font-medium text-fg">{item}</th><td className="px-3 py-2.5 text-muted">{ITEM_META[item]?.package}</td><td className="px-3 py-2.5 text-right font-mono tabular-nums">{a == null ? "—" : String(Math.round(a * 100)) + "%"}</td><td className="px-3 py-2.5 text-right font-mono tabular-nums">{b == null ? "—" : String(Math.round(b * 100)) + "%"}</td><td className="px-3 py-2.5 text-right font-mono font-bold tabular-nums text-accent">{combined == null ? "—" : String(Math.round(combined * 100)) + "%"}</td></tr>;
+            return <tr key={item} className="border-t border-border/70"><th scope="row" className="sticky-col sticky left-0 z-[1] min-w-48 bg-surface px-2 py-2.5 font-medium text-fg sm:px-3">{item}</th><td className="px-2 py-2.5 text-muted sm:px-3">{ITEM_META[item]?.package}</td><td className="px-2 py-2.5 text-right font-mono tabular-nums sm:px-3">{a == null ? "—" : String(Math.round(a * 100)) + "%"}</td><td className="px-2 py-2.5 text-right font-mono tabular-nums sm:px-3">{b == null ? "—" : String(Math.round(b * 100)) + "%"}</td><td className="px-2 py-2.5 text-right font-mono font-bold tabular-nums text-accent sm:px-3">{combined == null ? "—" : String(Math.round(combined * 100)) + "%"}</td></tr>;
           })}</tbody>
         </table>
       </div>

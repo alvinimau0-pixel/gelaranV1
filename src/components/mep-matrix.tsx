@@ -261,8 +261,8 @@ function EditableMepMatrix({ tower }: { tower?: "A" | "B" }) {
           </div>
           <span className="shrink-0 rounded-full bg-accent/10 px-2.5 py-1 text-[10px] font-semibold text-accent">{items.length} work items</span>
         </div>
-        <div className="overflow-x-auto overscroll-x-contain">
-          <table className="table-clear w-full min-w-[1500px] border-collapse text-left text-[10px] lg:text-[11px]" aria-label="MEP progress matrix">
+        <div className="responsive-scroll relative overflow-x-auto overscroll-x-contain">
+          <table className="responsive-table table-clear w-full min-w-[1180px] border-collapse text-left text-[10px] sm:min-w-[1320px] lg:min-w-[1500px] lg:text-[11px]" aria-label="MEP progress matrix">
             <thead>
               <tr>
                 <th scope="col" className="sticky left-0 z-20 min-w-16 border-b border-border bg-surface-2 px-2 py-2 text-center font-semibold uppercase tracking-wide text-fg">
