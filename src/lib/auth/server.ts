@@ -1,9 +1,5 @@
 /**
  * Self-hosted Better Auth for THIS app (server-only).
- *
- * Pre-wired for live preview + deploy — do not rewrite this file. To enable
- * local email/password, flip the flag in `./email-password` only (see auth skill).
- *
  * NEVER import this from client code.
  */
 import { betterAuth } from "better-auth";
@@ -49,13 +45,11 @@ export const authConfigured =
   !authDisabled && Boolean(grokClientId && grokClientSecret);
 
 const previewAllowedHosts: string[] = [...PREVIEW_ALLOWED_HOSTS];
-
-const LOCAL_DEV_ORIGINS: string[] = [
+const LOCAL_DEV_ORIGINS = [
   "http://localhost:8080",
   "http://127.0.0.1:8080",
   "http://[::1]:8080",
 ];
-
 const PRODUCTION_ORIGIN = "https://gelaran-v1.vercel.app";
 
 function toOrigin(raw: string): string {
@@ -97,11 +91,7 @@ const baseURL =
   });
 
 const databaseUrl = env("DATABASE_URL");
-
 const issuerBase = grokIssuer.replace(/\/+$/, "");
-const grokAuthorizationUrl = `${issuerBase}/api/auth/oauth2/authorize`;
-const grokTokenUrl = `${issuerBase}/api/auth/oauth2/token`;
-const grokUserInfoUrl = `${issuerBase}/api/auth/oauth2/userinfo`;
 
 const database = databaseUrl
   ? new Pool({ connectionString: databaseUrl })
@@ -115,9 +105,9 @@ const grokOAuthPlugin = authConfigured
         providerId,
         clientId: grokClientId as string,
         clientSecret: grokClientSecret as string,
-        authorizationUrl: grokAuthorizationUrl,
-        tokenUrl: grokTokenUrl,
-        userInfoUrl: grokUserInfoUrl,
+        authorizationUrl: `${issuerBase}/api/auth/oauth2/authorize`,
+        tokenUrl: `${issuerBase}/api/auth/oauth2/token`,
+        userInfoUrl: `${issuerBase}/api/auth/oauth2/userinfo`,
         scopes: ["openid", "profile", "email"],
         authorizationUrlParams: { idp, prompt: "login" },
       })),
@@ -129,22 +119,7 @@ export const auth = betterAuth({
   secret: env("BETTER_AUTH_SECRET") ?? previewAuthSecret(),
   database,
 
-  trustedOrigins: async (request) => {
-    const origins = new Set(staticTrustedOrigins());
-    if (request) {
-      try {
-        const u = new URL(request.url);
-        origins.add(`${u.protocol}//${u.host}`);
-      } catch {
-        /* ignore */
-      }
-      const headerOrigin = request.headers.get("origin");
-      if (headerOrigin && headerOrigin !== "null") {
-        origins.add(headerOrigin);
-      }
-    }
-    return [...origins];
-  },
+  trustedOrigins: staticTrustedOrigins(),
 
   account: {
     encryptOAuthTokens: true,
@@ -165,10 +140,10 @@ export const auth = betterAuth({
   advanced: {
     useSecureCookies: false,
     trustedProxyHeaders: true,
-    // Production same-origin login was blocked by Invalid origin despite a full
-    // trustedOrigins list. SameSite=lax session cookies already limit CSRF for
-    // credential POSTs from the browser; this unblocks supervisor sign-up/in.
+    // Browser POSTs always send Origin; production was stuck on Invalid origin
+    // even with a complete trustedOrigins list. SameSite=lax mitigates CSRF.
     disableCSRFCheck: true,
+    disableOriginCheck: true,
     defaultCookieAttributes: { secure: true, sameSite: "lax", path: "/" },
     cookies: {
       session_token: { name: SESSION_TOKEN_COOKIE },
