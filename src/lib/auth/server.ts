@@ -135,13 +135,19 @@ export const auth = betterAuth({
 
   session: { cookieCache: { enabled: true, maxAge: 300 } },
 
-  ...(emailAndPasswordEnabled ? { emailAndPassword: { enabled: true } } : {}),
+  ...(emailAndPasswordEnabled
+    ? {
+        emailAndPassword: {
+          enabled: true,
+          // Supervisor password is "Admin" (5 chars) per product requirement
+          minPasswordLength: 5,
+        },
+      }
+    : {}),
 
   advanced: {
     useSecureCookies: false,
     trustedProxyHeaders: true,
-    // Browser POSTs always send Origin; production was stuck on Invalid origin
-    // even with a complete trustedOrigins list. SameSite=lax mitigates CSRF.
     disableCSRFCheck: true,
     disableOriginCheck: true,
     defaultCookieAttributes: { secure: true, sameSite: "lax", path: "/" },
