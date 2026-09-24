@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { report as initialReport } from "@/lib/report-data";
+import { normalizeProgressionRows } from "@/lib/mep";
 
 type ReportData = typeof initialReport;
 
@@ -9,9 +10,11 @@ function normalizeReport(input: unknown): ReportData {
   const daily = persisted.dailyReport && typeof persisted.dailyReport === "object"
     ? (persisted.dailyReport as Partial<ReportData["dailyReport"]>)
     : {};
+  const progression = persisted.progression && typeof persisted.progression === "object" ? persisted.progression as ReportData["progression"] : initialReport.progression;
   return {
     ...structuredClone(initialReport),
     ...persisted,
+    progression: { A: normalizeProgressionRows(progression.A), B: normalizeProgressionRows(progression.B) },
     meta: { ...initialReport.meta, ...(persisted.meta ?? {}) },
     site: { ...initialReport.site, ...(persisted.site ?? {}) },
     dailyReport: {

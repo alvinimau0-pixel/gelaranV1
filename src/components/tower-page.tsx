@@ -2,12 +2,14 @@ import { useAppStore } from "@/lib/store";
 import { Badge, Card, Meter } from "@/components/ui";
 import { MepMatrix } from "@/components/mep-matrix";
 import { pct } from "@/lib/utils";
+import { ITEM_META, normalizeProgress } from "@/lib/mep";
 
 export function TowerPage({ tower }: { tower: "A" | "B" }) {
   const report = useAppStore((s) => s.report);
   const floors = report.floors.filter((f) => f.level !== "OVERALL");
-  const overall = report.comparePackages.find((p) => p.package === "OVERALL");
-  const value = tower === "A" ? overall?.a : overall?.b;
+  const activeItems = report.items.filter((item) => ITEM_META[item]);
+  const values = activeItems.flatMap((item) => report.progression[tower].map((row) => normalizeProgress(row.items[item]))).filter((value): value is number => value != null);
+  const value = values.length ? values.reduce((sum, current) => sum + current, 0) / values.length : null;
 
   return (
     <div className="space-y-6">

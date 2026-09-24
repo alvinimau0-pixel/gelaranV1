@@ -6,6 +6,7 @@ import { z } from "zod";
 import { getSql, type Sql } from "@/lib/db";
 import { report as seedReport } from "@/lib/report-data";
 import { recordAuditEvent } from "@/lib/audit.server";
+import { normalizeProgressionRows } from "@/lib/mep";
 
 export type ProgressionRow = {
   level: string;
@@ -33,7 +34,14 @@ const progressionSchema = z.object({
 });
 
 function seedProgression(): ProgressionData {
-  return structuredClone(seedReport.progression) as ProgressionData;
+  const A = normalizeProgressionRows(seedReport.progression.A);
+  return { A, B: structuredClone(A) } as ProgressionData;
+}
+
+function normalizeSnapshot(input: ProgressionData): ProgressionData {
+  const A = normalizeProgressionRows(input.A ?? []);
+  const hadLegacy = JSON.stringify(input).includes("BACKSHAFT FLUSH WATER") || JSON.stringify(input).includes("CONCEALED PIPE") || JSON.stringify(input).includes("L31 AND 31M");
+  return { A, B: hadLegacy ? structuredClone(A) : normalizeProgressionRows(input.B ?? []) };
 }
 
 /** Create table if migration has not run yet (safe on every call). */
@@ -58,7 +66,7 @@ export const getProgression = createServerFn({ method: "GET" }).handler(
       `;
       if (row?.data) {
         const parsed = progressionSchema.safeParse(row.data);
-        if (parsed.success) return parsed.data;
+        if (parsed.success) return normalizeSnapshot(parsed.data);
       }
       const seed = seedProgression();
       await sql`
@@ -124,7 +132,7 @@ export const setItemRange = createServerFn({ method: "POST" })
       `;
       if (existing?.data) {
         const parsed = progressionSchema.safeParse(existing.data);
-        current = parsed.success ? parsed.data : seedProgression();
+        current = parsed.success ? normalizeSnapshot(parsed.data) : seedProgression();
       } else {
         current = seedProgression();
       }

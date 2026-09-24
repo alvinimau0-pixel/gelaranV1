@@ -74,11 +74,6 @@ export const ITEM_META: Record<
     detail: "Stainless steel transfer pump pipe, riser including elbows, check valves and sampling points.",
     drawing: "CW-P-01",
   },
-  "L31 AND 31M ROOF PIPING": {
-    package: "Cold Water",
-    detail: "Roof manifold and 31M interconnection piping. Lot work at plant level only.",
-    drawing: "RF-31",
-  },
   "COLD WATER TENANT": {
     package: "Cold Water",
     detail: "Tenant cold-water pipework and offtakes on typical floors.",
@@ -89,20 +84,10 @@ export const ITEM_META: Record<
     detail: "Digital water meter installation for cold-water monitoring (sub: Kolik).",
     drawing: "CW-M-01",
   },
-  "CONCEALED PIPE": {
-    package: "Cold Water",
-    detail: "Concealed cold-water pipework in walls / screed (e.g. L23).",
-    drawing: "CW-C-01",
-  },
   "FLUSH WATER TANK PIPE": {
     package: "Flush Water",
     detail: "Pipework from flush-water tank to toilet cores and distribution.",
     drawing: "FW-T-01",
-  },
-  "BACKSHAFT FLUSH WATER TOILETS": {
-    package: "Flush Water",
-    detail: "Backshaft flush-water supply to toilet cores.",
-    drawing: "FW-B-01",
   },
   "HOSEREEL FLOORTRAP AND STACK": {
     package: "Sanitary",
@@ -114,11 +99,6 @@ export const ITEM_META: Record<
     detail: "Tenant sanitary waste and vent offtakes / outlets.",
     drawing: "SAN-R-01",
   },
-  "TOILET PIPE DISTRIBUTION AND HACKING": {
-    package: "Sanitary",
-    detail: "Toilet high-level distribution, droppers and hacking for toilet sets per floor.",
-    drawing: "SAN-T-01",
-  },
   "SANITARY TOILETS": {
     package: "Sanitary",
     detail: "Toilet UPVC waste/vent stacks, traps and floor outlets.",
@@ -129,20 +109,15 @@ export const ITEM_META: Record<
     detail: "WC pans, wash basins and sanitary ware fit-off.",
     drawing: "SAN-T-01",
   },
-  "PP PIPE": {
-    package: "Sanitary",
-    detail: "Polypropylene (PP) sanitary / waste pipe installation.",
-    drawing: "SAN-PP-01",
+  "BACKSHAFT TOILETS": {
+    package: "Flush Water",
+    detail: "Combined backshaft flush-water and sanitary waste/vent services to toilet cores.",
+    drawing: "FW-B-01",
   },
-  "FLOOR GRATING": {
+  "CONCEALED PIPE + TOILET PIPE DISTRIBUTION": {
     package: "Sanitary",
-    detail: "Floor grating at wet areas and drainage points (e.g. L7).",
-    drawing: "SAN-G-01",
-  },
-  "BACKSHAFT SANITARY TOILET": {
-    package: "Sanitary",
-    detail: "Backshaft sanitary waste/vent to toilet cores.",
-    drawing: "SAN-B-01",
+    detail: "Combined concealed pipework and toilet distribution / hacking scope per floor.",
+    drawing: "SAN-T-01",
   },
   "IRRIGATION NKVE": {
     package: "Irrigation",
@@ -171,11 +146,11 @@ export const ITEM_META: Record<
   },
 };
 
-export const PACKAGES = ["All", "Cold Water", "Flush Water", "Sanitary", "VO"] as const;
+export const PACKAGES = ["All", "Cold Water", "Flush Water", "Sanitary", "Irrigation"] as const;
 
 export function itemsForPackage(pkg: (typeof PACKAGES)[number]) {
   if (pkg === "All") return report.items;
-  if (pkg === "VO") return report.items.filter((i) => ITEM_META[i]?.package === "VO" || ITEM_META[i]?.package === "Irrigation");
+  if (pkg === "Irrigation") return report.items.filter((i) => ITEM_META[i]?.package === "Irrigation");
   return report.items.filter((i) => ITEM_META[i]?.package === pkg);
 }
 
@@ -214,6 +189,27 @@ type ProgressionLike = {
   A: { level: string; items: Record<string, number | null> }[];
   B: { level: string; items: Record<string, number | null> }[];
 };
+
+const LEGACY_ITEM_ALIASES: Record<string, string[]> = {
+  "BACKSHAFT TOILETS": ["BACKSHAFT TOILETS", "BACKSHAFT FLUSH WATER TOILETS", "BACKSHAFT SANITARY TOILET", "BACKSHAFT CW & FW TOILETS"],
+  "CONCEALED PIPE + TOILET PIPE DISTRIBUTION": ["CONCEALED PIPE + TOILET PIPE DISTRIBUTION", "CONCEALED PIPE", "TOILET PIPE DISTRIBUTION AND HACKING", "TOILET PIPE DISTRIBUTION & HACKING"],
+};
+const REMOVED_ITEMS = new Set(["L31 AND 31M ROOF PIPING", "L31 & 31M ROOF PIPING", "PP PIPE", "FLOOR GRATING"]);
+
+export function normalizeProgressionRows(rows: ProgressionLike["A"]): ProgressionLike["A"] {
+  return rows.map((row) => {
+    const items: Record<string, number | null> = {};
+    for (const [item, value] of Object.entries(row.items ?? {})) {
+      if (!REMOVED_ITEMS.has(item) && !Object.values(LEGACY_ITEM_ALIASES).some((aliases) => aliases.includes(item))) items[item] = value;
+    }
+    for (const [canonical, aliases] of Object.entries(LEGACY_ITEM_ALIASES)) {
+      const values = aliases.map((alias) => row.items?.[alias]).filter((value): value is number => value != null && Number.isFinite(value));
+      items[canonical] = values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
+    }
+    return { ...row, items };
+  });
+}
+
 
 export function validateProgression(progression: ProgressionLike, items: string[]) {
   const issues: string[] = [];

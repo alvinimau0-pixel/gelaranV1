@@ -17,91 +17,11 @@ const LEGEND = [
   { label: "N/A", range: "—", className: "bg-slate-200 ring-1 ring-inset ring-slate-300" },
 ];
 
-const REGISTER_LEVELS = ["13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "31M"] as const;
-const WORK_ITEM_REGISTER = [
-  ["Cold Water", "Water connection and meter", ""],
-  ["Cold Water", "Water tanks and break tank", ""],
-  ["Cold Water", "Main water pipework and distribution", ""],
-  ["Cold Water", "Booster pump and controls", "77%"],
-  ["Cold Water", "Valves, gauges and backflow protection", ""],
-  ["Cold Water", "Pipe sleeves, supports and fire stopping", ""],
-  ["Cold Water", "Flushing, disinfection and water sampling", ""],
-  ["Flush Water", "Flush-water separation and labels", ""],
-  ["Flush Water", "Flush-water tanks and tank connection", ""],
-  ["Flush Water", "Flush-water booster pump and pressure tank", ""],
-  ["Flush Water", "Flush-water main pipes and floor distribution", "-"],
-  ["Flush Water", "Toilet flushing pipe connections", ""],
-  ["Flush Water", "Flush-water testing and commissioning", ""],
-  ["Sanitary", "Toilet soil, waste and vent pipe risers", ""],
-  ["Sanitary", "Toilet stack pipes and branch outlets", ""],
-  ["Sanitary", "Toilet pipe outlets and wall hacking", "37%"],
-  ["Sanitary", "Floor traps, waste pipes and access points", ""],
-  ["Sanitary", "Toilet fixtures, sanitary ware and accessories", ""],
-  ["Sanitary", "Toilet drainage, water and air testing", ""],
-  ["Variation Orders", "Variation instruction and affected scope", ""],
-  ["Variation Orders", "Tank and pipework drawing revisions", ""],
-  ["Variation Orders", "Tank changes and pipe rerouting", "-"],
-  ["Variation Orders", "Tank accessories: ladders, drains and overflows", ""],
-  ["Variation Orders", "Variation testing and technical acceptance", ""],
-  ["Variation Orders", "Variation measurement, claim and close-out", ""],
-  ["Variation Orders", "Planter box irrigation pipework", ""],
-] as const;
-
-function WorkItemRegister() {
-  const [filter, setFilter] = useState("All");
-  const packages = ["All", "Cold Water", "Flush Water", "Sanitary", "Variation Orders"];
-  const rows = filter === "All" ? WORK_ITEM_REGISTER : WORK_ITEM_REGISTER.filter(([pkg]) => pkg === filter);
-  return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap gap-1.5">
-        {packages.map((pkg) => (
-          <button key={pkg} type="button" onClick={() => setFilter(pkg)} className={cn("min-h-9 rounded-full px-3 text-xs font-medium sm:min-h-11 sm:px-4 sm:text-sm", filter === pkg ? "bg-ink text-accent-fg" : "bg-surface-2 text-muted hover:text-fg")}>
-            {pkg}
-          </button>
-        ))}
-      </div>
-      <Card className="p-0">
-        <div className="flex flex-wrap items-start justify-between gap-3 px-3 pb-3 pt-3 sm:px-4 sm:pt-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted">Work item register</p>
-            <h2 className="pt-1 font-display text-base font-semibold text-fg sm:text-lg">MEP work plan by level</h2>
-            <p className="mt-1 text-xs text-muted">Track each work item across the building levels and monitor overall completion.</p>
-          </div>
-          <span className="rounded-full bg-accent/10 px-2.5 py-1 text-[10px] font-semibold text-accent">{rows.length} items</span>
-        </div>
-        <div className="overflow-x-auto border-t border-border">
-          <table className="w-full min-w-[1370px] border-collapse text-left text-[10px] lg:text-[11px]" aria-label="Work item register">
-            <thead>
-              <tr className="bg-surface-2 text-[9px] font-semibold uppercase tracking-wide text-muted">
-                <th scope="col" className="sticky left-0 z-10 min-w-36 border-r border-border bg-surface-2 px-3 py-3">Package</th>
-                <th scope="col" className="min-w-72 px-3 py-3">Scope / Work Item</th>
-                {REGISTER_LEVELS.map((level) => <th key={level} scope="col" className="min-w-12 border-l border-border px-2 py-2 text-center">{level}</th>)}
-                <th scope="col" className="min-w-24 border-l border-border px-3 py-3 text-right">Progress</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map(([pkg, workItem, progress], index) => (
-                <tr key={`${pkg}-${workItem}`} className={cn("border-t border-border/70 transition-colors hover:bg-surface-2/60", index > 0 && rows[index - 1]?.[0] !== pkg && "border-t-2 border-t-border")}>
-                  <th scope="row" className="sticky left-0 z-[1] border-r border-border bg-surface px-3 py-2.5 font-semibold text-fg"><span className="inline-flex rounded-md bg-accent/10 px-2 py-1 text-[10px] text-accent">{pkg}</span></th>
-                  <td className="px-3 py-2.5 font-medium text-fg">{workItem}</td>
-                  {REGISTER_LEVELS.map((level) => <td key={`${index}-${level}`} className="border-l border-border/70 px-2 py-2 text-center text-subtle">—</td>)}
-                  <td className="border-l border-border px-3 py-2.5 text-right font-mono font-bold text-fg">{progress ? <span className={cn("inline-flex min-w-12 justify-center rounded-md px-2 py-1", progress === "-" ? "bg-surface-2 text-subtle" : "bg-accent/10 text-accent")}>{progress}</span> : <span className="text-subtle">—</span>}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
-    </div>
-  );
-}
-
 export function MepMatrix({ tower }: { tower?: "A" | "B" }) {
-  if (!tower) return <WorkItemRegister />;
   return <EditableMepMatrix tower={tower} />;
 }
 
-function EditableMepMatrix({ tower }: { tower: "A" | "B" }) {
+function EditableMepMatrix({ tower }: { tower?: "A" | "B" }) {
   const report = useAppStore((s) => s.report);
   const [pkg, setPkg] = useState<(typeof PACKAGES)[number]>("All");
   const [sel, setSel] = useState<Sel | null>(null);
@@ -284,8 +204,8 @@ function EditableMepMatrix({ tower }: { tower: "A" | "B" }) {
       <Card className="p-0">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="px-3 pt-3 text-xs font-semibold uppercase tracking-wide text-muted sm:px-4 sm:pt-4">Work item register</p>
-            <h2 className="px-3 pb-3 pt-1 font-display text-base font-semibold text-fg sm:px-4 sm:pb-4">Full scope and package progress</h2>
+            <p className="px-3 pt-3 text-xs font-semibold uppercase tracking-wide text-muted sm:px-4 sm:pt-4">MEP Progress Matrix</p>
+            <h2 className="px-3 pb-3 pt-1 font-display text-base font-semibold text-fg sm:px-4 sm:pb-4">Level-by-level view · scroll horizontally to see all active work items</h2>
           </div>
               <span className="mr-3 mt-3 rounded-full bg-accent/10 px-2.5 py-1 text-[10px] font-semibold text-accent sm:mr-4 sm:mt-4">{pkg}</span>
         </div>
@@ -302,7 +222,7 @@ function EditableMepMatrix({ tower }: { tower: "A" | "B" }) {
             </thead>
             <tbody>
               {(Object.entries(TASK_GROUPS) as [keyof typeof TASK_GROUPS, (typeof TASK_GROUPS)[keyof typeof TASK_GROUPS]][])
-                .filter(([code]) => pkg === "All" || (pkg === "Cold Water" && code === "CW") || (pkg === "Flush Water" && code === "FW") || (pkg === "Sanitary" && code === "SAN") || (pkg === "VO" && code === "VO"))
+                .filter(([code]) => pkg === "All" || (pkg === "Cold Water" && code === "CW") || (pkg === "Flush Water" && code === "FW") || (pkg === "Sanitary" && code === "SAN") || (pkg === "Irrigation" && code === "VO"))
                 .flatMap(([code, group]) => group.tasks.map((task, index) => (
                   <tr key={task.id} className="border-t border-border/70">
                     <th scope="row" className="px-3 py-2 font-semibold text-fg sm:px-4">{group.label}</th>
