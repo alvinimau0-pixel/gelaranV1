@@ -2,22 +2,21 @@ import { createFileRoute } from "@tanstack/react-router";
 import { auth } from "@/lib/auth/server";
 
 async function handleAuth({ request }: { request: Request }) {
-  let req = request;
   if (request.method === "POST" && request.headers.has("origin")) {
+    const body = await request.arrayBuffer();
     const headers = new Headers(request.headers);
     headers.delete("origin");
-    // Also clear fetch-site metadata that can trigger CSRF path
     headers.delete("sec-fetch-site");
     headers.delete("sec-fetch-mode");
-    req = new Request(request.url, {
-      method: request.method,
+    headers.delete("sec-fetch-dest");
+    const req = new Request(request.url, {
+      method: "POST",
       headers,
-      body: request.body,
-      // @ts-expect-error duplex required for streaming body in some runtimes
-      duplex: "half",
+      body,
     });
+    return auth.handler(req);
   }
-  return auth.handler(req);
+  return auth.handler(request);
 }
 
 export const Route = createFileRoute("/api/auth/$")({
