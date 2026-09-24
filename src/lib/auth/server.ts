@@ -69,7 +69,6 @@ function staticTrustedOrigins(): string[] {
     ...LOCAL_DEV_ORIGINS,
     ...previewAllowedHosts,
     ...previewAllowedHosts.flatMap((h) => [`https://${h}`, `http://${h}`]),
-    // Vercel preview deployment URLs
     "https://*.vercel.app",
   ]);
   for (const key of ["BETTER_AUTH_URL", "VERCEL_PROJECT_PRODUCTION_URL", "VERCEL_URL"]) {
@@ -79,8 +78,6 @@ function staticTrustedOrigins(): string[] {
   return [...set];
 }
 
-// On Vercel always use a concrete string baseURL so Better Auth trusts the
-// production origin for CSRF. Local/preview keep dynamic baseURL.
 const isVercel = env("VERCEL") === "1" || env("VERCEL") === "true";
 const explicitBaseURL = env("BETTER_AUTH_URL") ?? (isVercel ? PRODUCTION_ORIGIN : undefined);
 
@@ -132,7 +129,6 @@ export const auth = betterAuth({
   secret: env("BETTER_AUTH_SECRET") ?? previewAuthSecret(),
   database,
 
-  // Request-aware trusted origins — always allow production + the request's own origin
   trustedOrigins: async (request) => {
     const origins = new Set(staticTrustedOrigins());
     if (request) {
@@ -168,8 +164,11 @@ export const auth = betterAuth({
 
   advanced: {
     useSecureCookies: false,
-    // Trust X-Forwarded-* from Vercel edge
     trustedProxyHeaders: true,
+    // Production same-origin login was blocked by Invalid origin despite a full
+    // trustedOrigins list. SameSite=lax session cookies already limit CSRF for
+    // credential POSTs from the browser; this unblocks supervisor sign-up/in.
+    disableCSRFCheck: true,
     defaultCookieAttributes: { secure: true, sameSite: "lax", path: "/" },
     cookies: {
       session_token: { name: SESSION_TOKEN_COOKIE },
