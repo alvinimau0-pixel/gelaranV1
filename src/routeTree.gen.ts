@@ -24,6 +24,7 @@ import { Route as PoLogRouteImport } from './routes/po-log'
 import { Route as TowerARouteImport } from './routes/tower-a'
 import { Route as TowerBRouteImport } from './routes/tower-b'
 import { Route as ApiDailySummaryRouteImport } from './routes/api/daily-summary'
+import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -100,6 +101,11 @@ const ApiDailySummaryRoute = ApiDailySummaryRouteImport.update({
   path: '/api/daily-summary',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
+  id: '/api/auth/$',
+  path: '/api/auth/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -117,6 +123,7 @@ export interface FileRoutesByFullPath {
   '/tower-a': typeof TowerARoute
   '/tower-b': typeof TowerBRoute
   '/api/daily-summary': typeof ApiDailySummaryRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -134,6 +141,7 @@ export interface FileRoutesByTo {
   '/tower-a': typeof TowerARoute
   '/tower-b': typeof TowerBRoute
   '/api/daily-summary': typeof ApiDailySummaryRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -152,6 +160,7 @@ export interface FileRoutesById {
   '/tower-a': typeof TowerARoute
   '/tower-b': typeof TowerBRoute
   '/api/daily-summary': typeof ApiDailySummaryRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -171,6 +180,7 @@ export interface FileRouteTypes {
     | '/tower-a'
     | '/tower-b'
     | '/api/daily-summary'
+    | '/api/auth/$'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -188,6 +198,7 @@ export interface FileRouteTypes {
     | '/tower-a'
     | '/tower-b'
     | '/api/daily-summary'
+    | '/api/auth/$'
   id:
     | '__root__'
     | '/'
@@ -205,6 +216,7 @@ export interface FileRouteTypes {
     | '/tower-a'
     | '/tower-b'
     | '/api/daily-summary'
+    | '/api/auth/$'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -223,6 +235,7 @@ export interface RootRouteChildren {
   TowerARoute: typeof TowerARoute
   TowerBRoute: typeof TowerBRoute
   ApiDailySummaryRoute: typeof ApiDailySummaryRoute
+  ApiAuthSplatRoute: typeof ApiAuthSplatRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -332,6 +345,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiDailySummaryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/auth/$': {
+      id: '/api/auth/$'
+      path: '/api/auth/$'
+      fullPath: '/api/auth/$'
+      preLoaderRoute: typeof ApiAuthSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -351,6 +371,7 @@ const rootRouteChildren: RootRouteChildren = {
   TowerARoute: TowerARoute,
   TowerBRoute: TowerBRoute,
   ApiDailySummaryRoute: ApiDailySummaryRoute,
+  ApiAuthSplatRoute: ApiAuthSplatRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
