@@ -21,6 +21,7 @@ import { Route as MaterialRouteImport } from './routes/material'
 import { Route as MatrixRouteImport } from './routes/matrix'
 import { Route as PhotosRouteImport } from './routes/photos'
 import { Route as PoLogRouteImport } from './routes/po-log'
+import { Route as SubcontractorsRouteImport } from './routes/subcontractors'
 import { Route as TowerARouteImport } from './routes/tower-a'
 import { Route as TowerBRouteImport } from './routes/tower-b'
 import { Route as ApiDailySummaryRouteImport } from './routes/api/daily-summary'
@@ -86,6 +87,11 @@ const PoLogRoute = PoLogRouteImport.update({
   path: '/po-log',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SubcontractorsRoute = SubcontractorsRouteImport.update({
+  id: '/subcontractors',
+  path: '/subcontractors',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TowerARoute = TowerARouteImport.update({
   id: '/tower-a',
   path: '/tower-a',
@@ -120,6 +126,7 @@ export interface FileRoutesByFullPath {
   '/matrix': typeof MatrixRoute
   '/photos': typeof PhotosRoute
   '/po-log': typeof PoLogRoute
+  '/subcontractors': typeof SubcontractorsRoute
   '/tower-a': typeof TowerARoute
   '/tower-b': typeof TowerBRoute
   '/api/daily-summary': typeof ApiDailySummaryRoute
@@ -138,6 +145,7 @@ export interface FileRoutesByTo {
   '/matrix': typeof MatrixRoute
   '/photos': typeof PhotosRoute
   '/po-log': typeof PoLogRoute
+  '/subcontractors': typeof SubcontractorsRoute
   '/tower-a': typeof TowerARoute
   '/tower-b': typeof TowerBRoute
   '/api/daily-summary': typeof ApiDailySummaryRoute
@@ -157,6 +165,7 @@ export interface FileRoutesById {
   '/matrix': typeof MatrixRoute
   '/photos': typeof PhotosRoute
   '/po-log': typeof PoLogRoute
+  '/subcontractors': typeof SubcontractorsRoute
   '/tower-a': typeof TowerARoute
   '/tower-b': typeof TowerBRoute
   '/api/daily-summary': typeof ApiDailySummaryRoute
@@ -177,6 +186,7 @@ export interface FileRouteTypes {
     | '/matrix'
     | '/photos'
     | '/po-log'
+    | '/subcontractors'
     | '/tower-a'
     | '/tower-b'
     | '/api/daily-summary'
@@ -195,6 +205,7 @@ export interface FileRouteTypes {
     | '/matrix'
     | '/photos'
     | '/po-log'
+    | '/subcontractors'
     | '/tower-a'
     | '/tower-b'
     | '/api/daily-summary'
@@ -213,6 +224,7 @@ export interface FileRouteTypes {
     | '/matrix'
     | '/photos'
     | '/po-log'
+    | '/subcontractors'
     | '/tower-a'
     | '/tower-b'
     | '/api/daily-summary'
@@ -232,6 +244,7 @@ export interface RootRouteChildren {
   MatrixRoute: typeof MatrixRoute
   PhotosRoute: typeof PhotosRoute
   PoLogRoute: typeof PoLogRoute
+  SubcontractorsRoute: typeof SubcontractorsRoute
   TowerARoute: typeof TowerARoute
   TowerBRoute: typeof TowerBRoute
   ApiDailySummaryRoute: typeof ApiDailySummaryRoute
@@ -324,6 +337,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PoLogRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/subcontractors': {
+      id: '/subcontractors'
+      path: '/subcontractors'
+      fullPath: '/subcontractors'
+      preLoaderRoute: typeof SubcontractorsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/tower-a': {
       id: '/tower-a'
       path: '/tower-a'
@@ -368,6 +388,7 @@ const rootRouteChildren: RootRouteChildren = {
   MatrixRoute: MatrixRoute,
   PhotosRoute: PhotosRoute,
   PoLogRoute: PoLogRoute,
+  SubcontractorsRoute: SubcontractorsRoute,
   TowerARoute: TowerARoute,
   TowerBRoute: TowerBRoute,
   ApiDailySummaryRoute: ApiDailySummaryRoute,
