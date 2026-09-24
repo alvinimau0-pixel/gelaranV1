@@ -103,10 +103,42 @@ const LOCAL_DEV_ORIGINS: string[] = [
   "http://127.0.0.1:8080",
   "http://[::1]:8080",
 ];
+
+// Vercel automatically injects these on every deployment.
+// Without them, email/password POSTs from the production domain fail with
+// "Invalid origin". Build a short list of https:// origins we always trust.
+function vercelProductionOrigins(): string[] {
+  const origins: string[] = [];
+  const candidates = [
+    env("VERCEL_PROJECT_PRODUCTION_URL"),
+    env("VERCEL_URL"),
+    env("BETTER_AUTH_URL"),
+  ];
+  for (const raw of candidates) {
+    if (!raw) continue;
+    // VERCEL_URL is host-only (no scheme); BETTER_AUTH_URL may already be full.
+    const origin = raw.startsWith("http") ? raw.replace(/\/$/, "") : `https://${raw.replace(/\/$/, "")}`;
+    if (!origins.includes(origin)) origins.push(origin);
+  }
+  // Always trust the known production domain for this project.
+  const known = "https://gelaran-v1.vercel.app";
+  if (!origins.includes(known)) origins.push(known);
+  return origins;
+}
+
+const vercelOrigins = vercelProductionOrigins();
+
 const baseURL = explicitBaseURL ?? {
   // Include loopback hosts so dynamic baseURL resolves for local email/password
   // (not only the preview wildcard).
-  allowedHosts: [...previewAllowedHosts, "localhost", "127.0.0.1", "[::1]"],
+  allowedHosts: [
+    ...previewAllowedHosts,
+    "localhost",
+    "127.0.0.1",
+    "[::1]",
+    // Production Vercel hosts (host-only form)
+    ...vercelOrigins.map((o) => o.replace(/^https?:\/\//, "")),
+  ],
   // `auto` → trust both http:// and https:// expansions of allowedHosts
   // (preview is https; local dev is http).
   protocol: "auto" as const,
@@ -115,15 +147,13 @@ const baseURL = explicitBaseURL ?? {
 
 // Origins Better Auth accepts on credentialed POSTs (sign-up/sign-in, etc.).
 // Missing entries here surface as FORBIDDEN "Invalid origin".
-const trustedOrigins: string[] = explicitBaseURL
-  ? [explicitBaseURL, ...LOCAL_DEV_ORIGINS]
-  : [
-      // Host wildcards (matched against Origin's host)
-      ...previewAllowedHosts,
-      // Full-origin wildcards (matched against Origin)
-      ...previewAllowedHosts.flatMap((host) => [`https://${host}`, `http://${host}`]),
-      ...LOCAL_DEV_ORIGINS,
-    ];
+const trustedOrigins: string[] = [
+  ...vercelOrigins,
+  ...LOCAL_DEV_ORIGINS,
+  // Preview wildcards (host form + full origin form)
+  ...previewAllowedHosts,
+  ...previewAllowedHosts.flatMap((host) => [`https://${host}`, `http://${host}`]),
+];
 
 const databaseUrl = env("DATABASE_URL");
 
