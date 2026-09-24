@@ -203,7 +203,12 @@ export function normalizeProgressionRows(rows: ProgressionLike["A"]): Progressio
       if (!REMOVED_ITEMS.has(item) && !Object.values(LEGACY_ITEM_ALIASES).some((aliases) => aliases.includes(item))) items[item] = value;
     }
     for (const [canonical, aliases] of Object.entries(LEGACY_ITEM_ALIASES)) {
-      const values = aliases.map((alias) => row.items?.[alias]).filter((value): value is number => value != null && Number.isFinite(value));
+      const canonicalValue = row.items?.[canonical];
+      const legacyValues = aliases
+        .filter((alias) => alias !== canonical)
+        .map((alias) => row.items?.[alias])
+        .filter((value): value is number => value != null && Number.isFinite(value));
+      const values = canonicalValue != null && Number.isFinite(canonicalValue) ? [canonicalValue] : legacyValues;
       items[canonical] = values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
     }
     return { ...row, items };

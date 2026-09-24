@@ -33,6 +33,19 @@ const progressionSchema = z.object({
   ),
 });
 
+const LEGACY_PROGRESSION_KEYS = new Set([
+  "L31 AND 31M ROOF PIPING",
+  "L31 & 31M ROOF PIPING",
+  "PP PIPE",
+  "FLOOR GRATING",
+  "BACKSHAFT FLUSH WATER TOILETS",
+  "BACKSHAFT SANITARY TOILET",
+  "BACKSHAFT CW & FW TOILETS",
+  "CONCEALED PIPE",
+  "TOILET PIPE DISTRIBUTION AND HACKING",
+  "TOILET PIPE DISTRIBUTION & HACKING",
+]);
+
 function seedProgression(): ProgressionData {
   const A = normalizeProgressionRows(seedReport.progression.A);
   return { A, B: structuredClone(A) } as ProgressionData;
@@ -40,8 +53,14 @@ function seedProgression(): ProgressionData {
 
 function normalizeSnapshot(input: ProgressionData): ProgressionData {
   const A = normalizeProgressionRows(input.A ?? []);
-  const hadLegacy = JSON.stringify(input).includes("BACKSHAFT FLUSH WATER") || JSON.stringify(input).includes("CONCEALED PIPE") || JSON.stringify(input).includes("L31 AND 31M");
+  const hadLegacy = [ ...(input.A ?? []), ...(input.B ?? []) ].some((row) =>
+    Object.keys(row.items ?? {}).some((item) => LEGACY_PROGRESSION_KEYS.has(item)),
+  );
   return { A, B: hadLegacy ? structuredClone(A) : normalizeProgressionRows(input.B ?? []) };
+}
+
+function progressionChanged(before: ProgressionData, after: ProgressionData) {
+  return JSON.stringify(before) !== JSON.stringify(after);
 }
 
 /** Create table if migration has not run yet (safe on every call). */
@@ -66,7 +85,17 @@ export const getProgression = createServerFn({ method: "GET" }).handler(
       `;
       if (row?.data) {
         const parsed = progressionSchema.safeParse(row.data);
-        if (parsed.success) return normalizeSnapshot(parsed.data);
+        if (parsed.success) {
+          const normalized = normalizeSnapshot(parsed.data);
+          if (progressionChanged(parsed.data, normalized)) {
+            await sql`
+              update mep_progression
+              set data = ${JSON.stringify(normalized)}::jsonb, updated_at = now()
+              where id = 1 and data = ${JSON.stringify(parsed.data)}::jsonb
+            `;
+          }
+          return normalized;
+        }
       }
       const seed = seedProgression();
       await sql`
@@ -90,9 +119,10 @@ export const saveProgression = createServerFn({ method: "POST" })
     await requireSupervisor();
     const sql = await getSql();
     await ensureTable(sql);
+    const normalized = normalizeSnapshot(data.data);
     const [row] = await sql<{ updated_at: string }>`
       insert into mep_progression (id, data, updated_at)
-      values (1, ${JSON.stringify(data.data)}::jsonb, now())
+      values (1, ${JSON.stringify(normalized)}::jsonb, now())
       on conflict (id) do update
         set data = excluded.data, updated_at = now()
       returning updated_at
