@@ -10,43 +10,30 @@ export type MepTask = {
 };
 
 export const TASK_GROUPS: Record<TaskPackage, { label: string; logic: string; tasks: MepTask[] }> = {
-  CW: { label: "Cold Water", logic: "Update by measured installation quantity, then confirm inspection and testing evidence.", tasks: [
-    { id: "CW-01", stage: "Coordination", short: "Incoming connection and meter" },
-    { id: "CW-02", stage: "Installation", short: "Storage tanks and break tank" },
-    { id: "CW-03", stage: "Installation", short: "Pumping main and distribution" },
-    { id: "CW-04", stage: "Installation", short: "Booster pump, VSD and controls" },
-    { id: "CW-05", stage: "Installation", short: "Valves, PRVs, gauges and backflow" },
-    { id: "CW-06", stage: "Testing", short: "Sleeves, supports and fire stopping" },
-    { id: "CW-07", stage: "Commissioning", short: "Flush, disinfect and sample" },
+  CW: { label: "Cold Water", logic: "Floor progress from the 25 September 2026 work matrix.", tasks: [
+    { id: "CW-01", stage: "Installation", short: "Pump" },
+    { id: "CW-02", stage: "Installation", short: "Pump control panel" },
+    { id: "CW-03", stage: "Installation", short: "Pipeline from pump L6 to rooftop A & B" },
+    { id: "CW-04", stage: "Installation", short: "Rooftop pipe" },
+    { id: "CW-05", stage: "Installation", short: "Tenant inlet and dropper" },
+    { id: "CW-06", stage: "Installation", short: "Backshaft CW & FW dropper (Asgar)" },
+    { id: "CW-07", stage: "Installation", short: "Backshaft CW & FW distribution (Bilal)" },
+    { id: "CW-08", stage: "Installation", short: "AHU dropper inlet and outlet" },
+    { id: "CW-09", stage: "Installation", short: "Terrace dropper inlet and outlet" },
+    { id: "CW-10", stage: "Installation", short: "High-level inlet UPVC CW outlet (Apoon)" },
   ] },
-  FW: { label: "Flush Water", logic: "Track independently from CW; do not treat an unrecorded FW value as zero.", tasks: [
-    { id: "FW-01", stage: "Coordination", short: "Non-potable separation and labels" },
-    { id: "FW-02", stage: "Installation", short: "FW tanks and break-tank link" },
-    { id: "FW-03", stage: "Installation", short: "Booster pump and pressure tank" },
-    { id: "FW-04", stage: "Installation", short: "Pumping main and floor distribution" },
-    { id: "FW-05", stage: "Installation", short: "Toilet flushing connections" },
-    { id: "FW-06", stage: "Commissioning", short: "Backflow, flow and commissioning" },
+  FW: { label: "Flush Water", logic: "No separate flush-water column is present in the supplied matrix.", tasks: [] },
+  SAN: { label: "Sanitary", logic: "Floor progress from the supplied tenant, hacking, backshaft, sanitary-ware and hosereel columns.", tasks: [
+    { id: "SAN-01", stage: "Installation", short: "Tenant outlet and dropper" },
+    { id: "SAN-02", stage: "Installation", short: "Hacking and pipe conceal (UPVC and PPR)" },
+    { id: "SAN-03", stage: "Installation", short: "Backshaft CW outlet (Sarif)" },
+    { id: "SAN-04", stage: "Installation", short: "Sanitary wares (Apoon)" },
+    { id: "SAN-05", stage: "Installation", short: "Hosereel" },
   ] },
-  SAN: { label: "Sanitary", logic: "Separate installation status from drainage test and technical acceptance.", tasks: [
-    { id: "SAN-01", stage: "Coordination", short: "Soil, waste and vent risers" },
-    { id: "SAN-02", stage: "Installation", short: "Stacks and tenant branches" },
-    { id: "SAN-03", stage: "Installation", short: "Toilet distribution and hacking" },
-    { id: "SAN-04", stage: "Installation", short: "Floor traps, wastes and access" },
-    { id: "SAN-05", stage: "Installation", short: "Fixtures and sanitary wares" },
-    { id: "SAN-06", stage: "Testing", short: "Water, air and flow tests" },
-  ] },
-  VO: { label: "Variation Orders + Irrigation", logic: "Track variation orders and irrigation scope by instruction, design, approval, installation, acceptance and valuation.", tasks: [
-    { id: "VO-01", stage: "Commercial", short: "Register instruction and affected scope" },
-    { id: "VO-02", stage: "Coordination", short: "Revise tank and pipework drawings" },
-    { id: "VO-03", stage: "Installation", short: "FRP tank changes and rerouting" },
-    { id: "VO-04", stage: "Installation", short: "Ladders, drains, overflows and sampling" },
-    { id: "VO-05", stage: "Testing", short: "VO testing and technical acceptance" },
-    { id: "VO-06", stage: "Commercial", short: "Measure, claim and close valuation" },
-    { id: "IRR-01", stage: "Installation", short: "Irrigation pipework and outlets — NKVE zone" },
-    { id: "IRR-02", stage: "Installation", short: "Irrigation pipework and outlets — LBU zone" },
-    { id: "IRR-03", stage: "Installation", short: "Irrigation pipework and outlets — Residential zone" },
-    { id: "IRR-04", stage: "Installation", short: "Irrigation pipework and outlets — Tamil School zone" },
-    { id: "IRR-05", stage: "Testing", short: "Irrigation control cabling and panel" },
+  VO: { label: "Irrigation", logic: "Landscape inlet, outlet and wiring progress from the supplied matrix.", tasks: [
+    { id: "IRR-01", stage: "Installation", short: "Landscape inlet (Rahmatullah)" },
+    { id: "IRR-02", stage: "Installation", short: "Landscape outlet (Rahmatullah)" },
+    { id: "IRR-03", stage: "Testing", short: "Landscape wiring (Green Simex)" },
   ] },
 };
 
@@ -54,11 +41,6 @@ export const ITEM_META: Record<
   string,
   { package: MepPackage; detail: string; drawing: string }
 > = {
-  "PIPE SLEEVE": {
-    package: "Cold Water",
-    detail: "Slab penetration sleeve for cold-water riser and floor offtakes. One set per typical floor.",
-    drawing: "CW-R-01",
-  },
   PUMP: {
     package: "Cold Water",
     detail: "Transfer / booster pump set at L31 plant. Not applicable on typical floors.",
@@ -69,81 +51,30 @@ export const ITEM_META: Record<
     detail: "Pump starter and control panel, L31 plant room.",
     drawing: "CW-P-01",
   },
-  "TRANSFER PUMP PIPES": {
+  "PIPELINE FROM PUMP LEVEL 6 TO ROOFTOP A & B": {
     package: "Cold Water",
-    detail: "Stainless steel transfer pump pipe, riser including elbows, check valves and sampling points.",
+    detail: "Pipeline from pump level 6 to rooftop serving Tower A and Tower B.",
     drawing: "CW-P-01",
   },
-  "COLD WATER TENANT": {
+  "ROOFTOP PIPE": { package: "Cold Water", detail: "Rooftop pipe installation.", drawing: "CW-P-01" },
+  "TENANT INLET AND DROPPER": {
     package: "Cold Water",
-    detail: "Tenant cold-water pipework and offtakes on typical floors.",
+    detail: "Tenant inlet and dropper installation.",
     drawing: "TYP-FL",
   },
-  "DIGITAL WATER METER": {
-    package: "Cold Water",
-    detail: "Digital water meter installation for cold-water monitoring (sub: Kolik).",
-    drawing: "CW-M-01",
-  },
-  "FLUSH WATER TANK PIPE": {
-    package: "Flush Water",
-    detail: "Pipework from flush-water tank to toilet cores and distribution.",
-    drawing: "FW-T-01",
-  },
-  "HOSEREEL FLOORTRAP AND STACK": {
-    package: "Sanitary",
-    detail: "Hosereel outlet, floor trap and vertical stack including fittings and supports.",
-    drawing: "SAN-R-01",
-  },
-  "SANITARY TENANT OUTLET": {
-    package: "Sanitary",
-    detail: "Tenant sanitary waste and vent offtakes / outlets.",
-    drawing: "SAN-R-01",
-  },
-  "SANITARY TOILETS": {
-    package: "Sanitary",
-    detail: "Toilet UPVC waste/vent stacks, traps and floor outlets.",
-    drawing: "SAN-T-01",
-  },
-  "SANITARY WARES INSTALLATION": {
-    package: "Sanitary",
-    detail: "WC pans, wash basins and sanitary ware fit-off.",
-    drawing: "SAN-T-01",
-  },
-  "BACKSHAFT TOILETS": {
-    package: "Flush Water",
-    detail: "Combined backshaft flush-water and sanitary waste/vent services to toilet cores.",
-    drawing: "FW-B-01",
-  },
-  "CONCEALED PIPE + TOILET PIPE DISTRIBUTION": {
-    package: "Sanitary",
-    detail: "Combined concealed pipework and toilet distribution / hacking scope per floor.",
-    drawing: "SAN-T-01",
-  },
-  "IRRIGATION NKVE": {
-    package: "Irrigation",
-    detail: "Irrigation pipework and outlets — NKVE zone.",
-    drawing: "IRR-NKVE",
-  },
-  "IRRIGATION LBU": {
-    package: "Irrigation",
-    detail: "Irrigation pipework and outlets — LBU zone.",
-    drawing: "IRR-LBU",
-  },
-  "IRRIGATION RESIDENTIAL": {
-    package: "Irrigation",
-    detail: "Irrigation pipework and outlets — Residential zone.",
-    drawing: "IRR-RES",
-  },
-  "IRRIGATION TAMIL SCHOOL": {
-    package: "Irrigation",
-    detail: "Irrigation pipework and outlets — Tamil School zone.",
-    drawing: "IRR-TS",
-  },
-  "IRRIGATION WIRING": {
-    package: "Irrigation",
-    detail: "Control cabling from solenoid valves to irrigation panel (sub: Green Simex).",
-    drawing: "IRR-W-01",
-  },
+  "BACKSHAFT CW & FW DROPPER (ASGAR)": { package: "Cold Water", detail: "Backshaft CW & FW dropper installation by Asgar.", drawing: "CW-R-01" },
+  "BACKSHAFT CW & FW DISTRIBUTION (BILAL)": { package: "Cold Water", detail: "Backshaft CW & FW distribution by Bilal.", drawing: "CW-R-01" },
+  "AHU DROPPER INLET AND OUTLET": { package: "Cold Water", detail: "AHU dropper inlet and outlet.", drawing: "CW-R-01" },
+  "TERRACE DROPPER INLET AND OUTLET": { package: "Cold Water", detail: "Terrace dropper inlet and outlet.", drawing: "CW-R-01" },
+  "HIGH LEVEL INLET UPVC CW OUTLET (APOON)": { package: "Cold Water", detail: "High-level inlet UPVC CW outlet by Apoon.", drawing: "CW-R-01" },
+  "TENANT OUTLET AND DROPPER": { package: "Sanitary", detail: "Tenant outlet and dropper installation.", drawing: "SAN-R-01" },
+  "HACKING AND PIPE CONCEAL (UPVC AND PPR)": { package: "Sanitary", detail: "Hacking and concealed UPVC/PPR pipework.", drawing: "SAN-T-01" },
+  "BACKSHAFT CW OUTLET (SARIF)": { package: "Sanitary", detail: "Backshaft CW outlet by Sarif.", drawing: "SAN-R-01" },
+  "SANITARY WARES (APOON)": { package: "Sanitary", detail: "Sanitary ware installation by Apoon.", drawing: "SAN-T-01" },
+  HOSEREEL: { package: "Sanitary", detail: "Hosereel installation.", drawing: "SAN-R-01" },
+  "LANDSCAPE INLET (RAHMATULLAH)": { package: "Irrigation", detail: "Landscape inlet by Rahmatullah.", drawing: "IRR-R-01" },
+  "LANDSCAPE OUTLET (RAHMATULLAH)": { package: "Irrigation", detail: "Landscape outlet by Rahmatullah.", drawing: "IRR-R-01" },
+  "LANDSCAPE WIRING (GREEN SIMEX)": { package: "Irrigation", detail: "Landscape wiring by Green Simex.", drawing: "IRR-W-01" },
 };
 
 export const PACKAGES = ["All", "Cold Water", "Flush Water", "Sanitary", "Irrigation"] as const;
@@ -280,9 +211,40 @@ export function computePackageProgress(progression: ProgressionLike): {
     }
   }
   const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
-  const coldWater = avg([...buckets["Cold Water"], ...buckets["Flush Water"]]);
-  const sanitary = avg(buckets.Sanitary);
-  const irrigation = avg(buckets.Irrigation);
-  const all = [...buckets["Cold Water"], ...buckets["Flush Water"], ...buckets.Sanitary, ...buckets.Irrigation, ...buckets.VO];
-  return { coldWater, sanitary, irrigation, overall: avg(all) };
+  const current = {
+    coldWater: avg([...buckets["Cold Water"], ...buckets["Flush Water"]]),
+    sanitary: avg(buckets.Sanitary),
+    irrigation: avg(buckets.Irrigation),
+  };
+  const baseBuckets: Record<MepPackage, number[]> = {
+    "Cold Water": [],
+    "Flush Water": [],
+    Sanitary: [],
+    Irrigation: [],
+    VO: [],
+  };
+  for (const tower of ["A", "B"] as const) {
+    for (const row of report.progression[tower] ?? []) {
+      for (const [item, value] of Object.entries(row.items ?? {})) {
+        if (value == null || !Number.isFinite(value)) continue;
+        const pkg = ITEM_META[item]?.package;
+        if (pkg) baseBuckets[pkg].push(Math.max(0, Math.min(1, value)));
+      }
+    }
+  }
+  const base = {
+    coldWater: avg([...baseBuckets["Cold Water"], ...baseBuckets["Flush Water"]]),
+    sanitary: avg(baseBuckets.Sanitary),
+    irrigation: avg(baseBuckets.Irrigation),
+  };
+  const baseline = {
+    coldWater: report.packages.coldWater,
+    sanitary: report.packages.sanitary,
+    irrigation: report.packages.irrigation,
+  };
+  const coldWater = Math.max(0, Math.min(1, baseline.coldWater + current.coldWater - base.coldWater));
+  const sanitary = Math.max(0, Math.min(1, baseline.sanitary + current.sanitary - base.sanitary));
+  const irrigation = Math.max(0, Math.min(1, baseline.irrigation + current.irrigation - base.irrigation));
+  const overall = Math.max(0, Math.min(1, report.packages.overall + (coldWater - baseline.coldWater) * 0.55 + (sanitary - baseline.sanitary) * 0.3 + (irrigation - baseline.irrigation) * 0.15));
+  return { coldWater, sanitary, irrigation, overall };
 }
