@@ -53,6 +53,18 @@ function progressionFromSeed(): ProgressionData {
   return structuredClone(seedReport.progression) as ProgressionData;
 }
 
+function matrixMean(data: ProgressionData): number {
+  const vals: number[] = [];
+  for (const tower of [data.A, data.B]) {
+    for (const row of tower ?? []) {
+      for (const v of Object.values(row.items ?? {})) {
+        if (typeof v === "number" && Number.isFinite(v)) vals.push(v);
+      }
+    }
+  }
+  return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+}
+
 function toSummary(row: SummaryRow): DailySummary {
   return {
     id: row.id,
@@ -104,8 +116,25 @@ export async function buildDailySummary(date?: string): Promise<DailySummary> {
     where w.active = true order by w.name asc
   `;
 
+  // Ensure Neon snapshot matches committed seed-prog (fix drift from older sheet)
+  const seed = progressionFromSeed();
   const [progressionRow] = await sql<{ data: ProgressionData }>`select data from mep_progression where id = 1`;
-  const progression = progressionRow?.data ?? progressionFromSeed();
+  let progression = progressionRow?.data ?? seed;
+  const storedMean = matrixMean(progression);
+  const seedMean = matrixMean(seed);
+  if (Math.abs(storedMean - seedMean) > 0.03) {
+    await sql`
+      insert into mep_progression (id, data, updated_at)
+      values (1, ${JSON.stringify(seed)}::jsonb, now())
+      on conflict (id) do update
+        set data = excluded.data, updated_at = now()
+    `;
+    progression = seed;
+    console.info(
+      `[daily-summary] reseeded mep_progression (stored=${(storedMean * 100).toFixed(2)}% → seed=${(seedMean * 100).toFixed(2)}%)`,
+    );
+  }
+
   const towerProgress = (tower: "A" | "B") => average(
     (progression[tower] ?? []).flatMap((floor) => Object.values(floor.items ?? {})).filter(
       (value): value is number => typeof value === "number" && Number.isFinite(value),
