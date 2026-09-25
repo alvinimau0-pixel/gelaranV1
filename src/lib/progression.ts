@@ -46,6 +46,9 @@ const LEGACY_PROGRESSION_KEYS = new Set([
   "TOILET PIPE DISTRIBUTION & HACKING",
 ]);
 
+/** If |storedMean - seedMean| exceeds this, replace Neon with committed seed. */
+const SEED_DRIFT_THRESHOLD = 0.03;
+
 function seedProgression(): ProgressionData {
   const A = normalizeProgressionRows(seedReport.progression.A);
   return { A, B: structuredClone(A) } as ProgressionData;
@@ -57,12 +60,42 @@ function isCurrentMatrixSnapshot(input: ProgressionData) {
   return expected.size > 0 && [...expected].every((item) => Object.prototype.hasOwnProperty.call(sample, item));
 }
 
+function matrixMean(input: ProgressionData): number | null {
+  const vals: number[] = [];
+  for (const tower of [input.A, input.B] as ProgressionRow[][]) {
+    for (const row of tower ?? []) {
+      for (const v of Object.values(row.items ?? {})) {
+        if (typeof v === "number" && Number.isFinite(v)) vals.push(v);
+      }
+    }
+  }
+  if (vals.length === 0) return null;
+  return vals.reduce((a, b) => a + b, 0) / vals.length;
+}
+
 function normalizeSnapshot(input: ProgressionData): ProgressionData {
   const A = normalizeProgressionRows(input.A ?? []);
-  const hadLegacy = [ ...(input.A ?? []), ...(input.B ?? []) ].some((row) =>
+  const hadLegacy = [...(input.A ?? []), ...(input.B ?? [])].some((row) =>
     Object.keys(row.items ?? {}).some((item) => LEGACY_PROGRESSION_KEYS.has(item)),
   );
   if (!isCurrentMatrixSnapshot(input) || hadLegacy) return seedProgression();
+
+  // Sync Neon when the stored snapshot drifted from the committed seed-prog
+  // (e.g. older image OVR cells averaging ~53.7% vs seed ~48%).
+  const seed = seedProgression();
+  const storedMean = matrixMean({ A, B: normalizeProgressionRows(input.B ?? []) });
+  const seedMean = matrixMean(seed);
+  if (
+    storedMean != null &&
+    seedMean != null &&
+    Math.abs(storedMean - seedMean) > SEED_DRIFT_THRESHOLD
+  ) {
+    console.info(
+      `[progression] seed drift detected (stored=${(storedMean * 100).toFixed(2)}% seed=${(seedMean * 100).toFixed(2)}%) — reseeding Neon from seed-prog`,
+    );
+    return seed;
+  }
+
   return { A, B: normalizeProgressionRows(input.B ?? []) };
 }
 
@@ -81,7 +114,7 @@ async function ensureTable(sql: Sql): Promise<void> {
   `;
 }
 
-/** Load shared progression; seed DB from report-data if empty. */
+/** Load shared progression; seed DB from report-data if empty or drifted. */
 export const getProgression = createServerFn({ method: "GET" }).handler(
   async (): Promise<ProgressionData> => {
     try {
@@ -98,8 +131,14 @@ export const getProgression = createServerFn({ method: "GET" }).handler(
             await sql`
               update mep_progression
               set data = ${JSON.stringify(normalized)}::jsonb, updated_at = now()
-              where id = 1 and data = ${JSON.stringify(parsed.data)}::jsonb
+              where id = 1
             `;
+            await recordAuditEvent(sql, {
+              action: "progression.reseeded",
+              entityType: "mep_progression",
+              entityId: "1",
+              summary: "Reseeded MEP progression from committed seed-prog (drift/legacy fix)",
+            }).catch(() => undefined);
           }
           return normalized;
         }
