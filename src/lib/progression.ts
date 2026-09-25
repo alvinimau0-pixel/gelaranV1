@@ -51,12 +51,19 @@ function seedProgression(): ProgressionData {
   return { A, B: structuredClone(A) } as ProgressionData;
 }
 
+function isCurrentMatrixSnapshot(input: ProgressionData) {
+  const expected = new Set(seedReport.items);
+  const sample = input.A?.[0]?.items ?? {};
+  return expected.size > 0 && [...expected].every((item) => Object.prototype.hasOwnProperty.call(sample, item));
+}
+
 function normalizeSnapshot(input: ProgressionData): ProgressionData {
   const A = normalizeProgressionRows(input.A ?? []);
   const hadLegacy = [ ...(input.A ?? []), ...(input.B ?? []) ].some((row) =>
     Object.keys(row.items ?? {}).some((item) => LEGACY_PROGRESSION_KEYS.has(item)),
   );
-  return { A, B: hadLegacy ? structuredClone(A) : normalizeProgressionRows(input.B ?? []) };
+  if (!isCurrentMatrixSnapshot(input) || hadLegacy) return seedProgression();
+  return { A, B: normalizeProgressionRows(input.B ?? []) };
 }
 
 function progressionChanged(before: ProgressionData, after: ProgressionData) {
