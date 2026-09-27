@@ -21,6 +21,7 @@ import { listSitePhotos, createSitePhoto, type SitePhoto } from "@/lib/photos";
 import { compressImageToBase64 } from "@/lib/image-compress";
 import { getLatestDailySummary, type DailySummary } from "@/lib/daily-summary";
 import { ProgressDashboard } from "@/components/progress-dashboard";
+import { plannedManpower } from "@/lib/report-data";
 
 export const Route = createFileRoute("/home")({ component: Home });
 
@@ -34,10 +35,15 @@ function CombinedProgressDashboard() {
   const items = useAppStore((state) => state.report.items);
   const [filter, setFilter] = useState<(typeof PACKAGES)[number]>("All");
   const activeItems = items.filter((item) => ITEM_META[item]);
-  const visibleItems = filter === "All" ? activeItems : activeItems.filter((item) => ITEM_META[item]?.package === filter);
+  const visibleItems =
+    filter === "All"
+      ? activeItems
+      : activeItems.filter((item) => ITEM_META[item]?.package === filter);
   const live = computeLiveProgress(progression, items);
   const itemProgress = (tower: "A" | "B", item: string) => {
-    const values = progression[tower].flatMap((row) => row.items[item]).filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+    const values = progression[tower]
+      .flatMap((row) => row.items[item])
+      .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
     return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
   };
   const towerOverall = (tower: "A" | "B") => live.towers[tower];
@@ -47,9 +53,15 @@ function CombinedProgressDashboard() {
     <Card>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-accent">Management view</p>
-          <h2 className="mt-0.5 font-display text-base font-semibold sm:text-lg">Tower A + Tower B Combined Progress</h2>
-          <p className="mt-1 text-xs text-muted">Live from the same floor-level MEP progression used by both matrices.</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-accent">
+            Management view
+          </p>
+          <h2 className="mt-0.5 font-display text-base font-semibold sm:text-lg">
+            Tower A + Tower B Combined Progress
+          </h2>
+          <p className="mt-1 text-xs text-muted">
+            Live from the same floor-level MEP progression used by both matrices.
+          </p>
         </div>
         <div className="flex flex-wrap gap-1.5">
           {PACKAGES.map((pkg) => (
@@ -68,23 +80,37 @@ function CombinedProgressDashboard() {
         </div>
       </div>
       <div className="mt-4 grid gap-2 sm:grid-cols-3">
-        {([["Tower A", towerOverall("A")], ["Tower B", towerOverall("B")], ["Combined", combinedOverall]] as const).map(([label, value]) => (
+        {(
+          [
+            ["Tower A", towerOverall("A")],
+            ["Tower B", towerOverall("B")],
+            ["Combined", combinedOverall],
+          ] as const
+        ).map(([label, value]) => (
           <div key={label} className="rounded-xl border border-border bg-surface-2/60 px-3 py-3">
             <p className="text-[10px] font-semibold uppercase tracking-wide text-muted">{label}</p>
             <p className="mt-1 font-display text-xl font-semibold tabular-nums text-fg">
               {value == null ? "—" : String(Math.round(value * 100)) + "%"}
             </p>
             <div className="mt-2 h-2 overflow-hidden rounded-full bg-surface">
-              <div className="h-full rounded-full bg-accent" style={{ width: String(Math.round((value ?? 0) * 100)) + "%" }} />
+              <div
+                className="h-full rounded-full bg-accent"
+                style={{ width: String(Math.round((value ?? 0) * 100)) + "%" }}
+              />
             </div>
           </div>
         ))}
       </div>
       <div className="responsive-scroll relative mt-4 overflow-x-auto rounded-xl border border-border">
-        <table className="responsive-table table-clear w-full min-w-[640px] border-collapse text-left text-xs sm:min-w-[700px]" aria-label="Tower A and Tower B combined MEP progress">
+        <table
+          className="responsive-table table-clear w-full min-w-[640px] border-collapse text-left text-xs sm:min-w-[700px]"
+          aria-label="Tower A and Tower B combined MEP progress"
+        >
           <thead>
             <tr>
-              <th className="sticky-col sticky left-0 z-10 min-w-48 px-2 py-2 sm:px-3">Work Item</th>
+              <th className="sticky-col sticky left-0 z-10 min-w-48 px-2 py-2 sm:px-3">
+                Work Item
+              </th>
               <th className="px-2 py-2 sm:px-3">Package</th>
               <th className="px-2 py-2 text-right sm:px-3">Tower A</th>
               <th className="px-2 py-2 text-right sm:px-3">Tower B</th>
@@ -98,11 +124,22 @@ function CombinedProgressDashboard() {
               const combined = average([a, b]);
               return (
                 <tr key={item} className="border-t border-border/70">
-                  <th scope="row" className="sticky-col sticky left-0 z-[1] min-w-48 bg-surface px-2 py-2.5 font-medium text-fg sm:px-3">{item}</th>
+                  <th
+                    scope="row"
+                    className="sticky-col sticky left-0 z-[1] min-w-48 bg-surface px-2 py-2.5 font-medium text-fg sm:px-3"
+                  >
+                    {item}
+                  </th>
                   <td className="px-2 py-2.5 text-muted sm:px-3">{ITEM_META[item]?.package}</td>
-                  <td className="px-2 py-2.5 text-right font-mono tabular-nums sm:px-3">{a == null ? "—" : String(Math.round(a * 100)) + "%"}</td>
-                  <td className="px-2 py-2.5 text-right font-mono tabular-nums sm:px-3">{b == null ? "—" : String(Math.round(b * 100)) + "%"}</td>
-                  <td className="px-2 py-2.5 text-right font-mono font-bold tabular-nums text-accent sm:px-3">{combined == null ? "—" : String(Math.round(combined * 100)) + "%"}</td>
+                  <td className="px-2 py-2.5 text-right font-mono tabular-nums sm:px-3">
+                    {a == null ? "—" : String(Math.round(a * 100)) + "%"}
+                  </td>
+                  <td className="px-2 py-2.5 text-right font-mono tabular-nums sm:px-3">
+                    {b == null ? "—" : String(Math.round(b * 100)) + "%"}
+                  </td>
+                  <td className="px-2 py-2.5 text-right font-mono font-bold tabular-nums text-accent sm:px-3">
+                    {combined == null ? "—" : String(Math.round(combined * 100)) + "%"}
+                  </td>
                 </tr>
               );
             })}
@@ -116,6 +153,7 @@ function CombinedProgressDashboard() {
 function Home() {
   const report = useAppStore((state) => state.report);
   const s = report.site;
+  const planned = plannedManpower(report.dailyReport);
   const today = todayInKualaLumpur();
   const live = computeLiveProgress(report.progression, report.items);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -183,9 +221,12 @@ function Home() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h1 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">Site dashboard</h1>
+          <h1 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">
+            Site dashboard
+          </h1>
           <p className="mt-0.5 text-xs text-muted sm:text-sm">
-            Dashboard date {today.iso} (Malaysia) · {s.weather} · {s.shift} · {pct(live.packages.overall)} overall
+            Dashboard date {today.iso} (Malaysia) · {s.weather} · {s.shift} ·{" "}
+            {pct(live.packages.overall)} overall
           </p>
         </div>
         <div className="flex flex-wrap gap-1.5">
@@ -212,7 +253,9 @@ function Home() {
               </div>
             </>
           ) : (
-            <div className="flex h-full items-center justify-center text-sm text-white/60">No site photos yet</div>
+            <div className="flex h-full items-center justify-center text-sm text-white/60">
+              No site photos yet
+            </div>
           )}
           <div className="absolute right-2 top-2 flex gap-1">
             <button
@@ -241,7 +284,11 @@ function Home() {
             />
           </div>
         </div>
-        {uploadError ? <p role="alert" className="border-t border-bad/20 bg-bad-bg px-3 py-2 text-sm text-bad">{uploadError}</p> : null}
+        {uploadError ? (
+          <p role="alert" className="border-t border-bad/20 bg-bad-bg px-3 py-2 text-sm text-bad">
+            {uploadError}
+          </p>
+        ) : null}
       </Card>
 
       <ProgressDashboard dailySummary={dailySummary} />
@@ -250,16 +297,52 @@ function Home() {
         <Card>
           <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-accent">Work plan & distribution</p>
-              <h2 className="mt-0.5 font-display text-base font-semibold sm:text-lg">Manpower detail · {dailySummary.summaryDate}</h2>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-accent">
+                Work plan & distribution
+              </p>
+              <h2 className="mt-0.5 font-display text-base font-semibold sm:text-lg">
+                Manpower detail · {dailySummary.summaryDate}
+              </h2>
             </div>
-            <Link to="/daily-summary" className="text-xs font-medium text-accent hover:underline">View history →</Link>
+            <Link to="/daily-summary" className="text-xs font-medium text-accent hover:underline">
+              View history →
+            </Link>
           </div>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <div className="rounded-lg bg-ok-bg px-3 py-2"><p className="text-[10px] font-semibold uppercase tracking-wide text-muted">Present</p><p className="mt-1 font-mono text-lg font-bold text-ok">{dailySummary.attendance.present}</p></div>
-            <div className="rounded-lg bg-bad-bg px-3 py-2"><p className="text-[10px] font-semibold uppercase tracking-wide text-muted">Absent</p><p className="mt-1 font-mono text-lg font-bold text-bad">{dailySummary.attendance.absent}</p></div>
-            <div className="rounded-lg bg-accent/10 px-3 py-2"><p className="text-[10px] font-semibold uppercase tracking-wide text-muted">Direct / sub</p><p className="mt-1 font-mono text-lg font-bold text-accent">{dailySummary.attendance.direct} / {dailySummary.attendance.subcontractor}</p></div>
-            <div className="rounded-lg bg-surface-2 px-3 py-2"><p className="text-[10px] font-semibold uppercase tracking-wide text-muted">MC / Off</p><p className="mt-1 font-mono text-lg font-bold text-fg">{dailySummary.attendance.mc} / {dailySummary.attendance.off}</p></div>
+            <div className="rounded-lg bg-ok-bg px-3 py-2">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted">
+                Present
+              </p>
+              <p className="mt-1 font-mono text-lg font-bold text-ok">
+                {dailySummary.attendance.present}
+              </p>
+            </div>
+            <div className="rounded-lg bg-bad-bg px-3 py-2">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted">Absent</p>
+              <p className="mt-1 font-mono text-lg font-bold text-bad">
+                {dailySummary.attendance.absent}
+              </p>
+            </div>
+            <div className="rounded-lg bg-accent/10 px-3 py-2">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted">
+                Planned direct / sub
+              </p>
+              <p className="mt-1 font-mono text-lg font-bold text-accent">
+                {dailySummary.planned.direct} / {dailySummary.planned.subcontractor}
+              </p>
+              <p className="text-[10px] text-muted">
+                Registered: {dailySummary.attendance.direct} /{" "}
+                {dailySummary.attendance.subcontractor}
+              </p>
+            </div>
+            <div className="rounded-lg bg-surface-2 px-3 py-2">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted">
+                MC / Off
+              </p>
+              <p className="mt-1 font-mono text-lg font-bold text-fg">
+                {dailySummary.attendance.mc} / {dailySummary.attendance.off}
+              </p>
+            </div>
           </div>
         </Card>
       ) : null}
@@ -267,17 +350,31 @@ function Home() {
       <Card className="p-3 sm:p-5">
         <div className="mb-3 flex items-center justify-between gap-2">
           <div>
-            <h2 className="font-display text-base font-semibold sm:text-lg">Work plan · {report.dailyReport.date}</h2>
-            <p className="text-[11px] text-muted">Planned workers by subcontractor and field team</p>
+            <h2 className="font-display text-base font-semibold sm:text-lg">
+              Work plan · {report.dailyReport.date}
+            </h2>
+            <p className="text-[11px] text-muted">
+              Planned workers · MSK direct / field team is shown separately from subcontractors
+            </p>
           </div>
-          <span className="font-mono text-sm font-bold tabular-nums text-fg">{report.dailyReport.totalWorkers} total</span>
+          <span className="font-mono text-sm font-bold tabular-nums text-fg">
+            {report.dailyReport.totalWorkers} total
+          </span>
         </div>
         <div className="mb-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {report.dailyReport.subcontractors.map((sub) => (
-            <div key={sub.name} className="rounded-xl border border-border bg-surface-2/70 px-3 py-3">
+          {[
+            { name: "MSK direct / field team", scope: "Direct site team", workers: planned.direct },
+            ...report.dailyReport.subcontractors,
+          ].map((sub) => (
+            <div
+              key={sub.name}
+              className="rounded-xl border border-border bg-surface-2/70 px-3 py-3"
+            >
               <div className="flex items-center justify-between gap-2">
                 <p className="text-xs font-bold tracking-wide text-fg">{sub.name}</p>
-                <span className="font-mono text-sm font-bold tabular-nums text-accent">{sub.workers}</span>
+                <span className="font-mono text-sm font-bold tabular-nums text-accent">
+                  {sub.workers}
+                </span>
               </div>
               <p className="mt-1 text-[11px] leading-tight text-muted">{sub.scope}</p>
             </div>
@@ -286,38 +383,62 @@ function Home() {
         <div className="mb-4 overflow-hidden rounded-xl border border-border bg-surface-2/50">
           <div className="space-y-2.5 px-3 py-3">
             {report.dailyReport.laborDistribution.map((group) => {
-              const plannedTotal = report.dailyReport.laborDistribution.reduce((sum, item) => sum + item.workers, 0);
-              const percentage = plannedTotal ? Math.round((group.workers / plannedTotal) * 100) : 0;
+              const plannedTotal = report.dailyReport.laborDistribution.reduce(
+                (sum, item) => sum + item.workers,
+                0,
+              );
+              const percentage = plannedTotal
+                ? Math.round((group.workers / plannedTotal) * 100)
+                : 0;
               return (
-              <div key={group.label}>
-                <div className="mb-1 flex items-center justify-between gap-3 text-xs">
-                  <span className="min-w-0 truncate font-medium text-fg">{group.label}</span>
-                  <span className="shrink-0 font-mono font-bold tabular-nums text-muted">{group.workers} planned · {percentage}% of planned people</span>
+                <div key={group.label}>
+                  <div className="mb-1 flex items-center justify-between gap-3 text-xs">
+                    <span className="min-w-0 truncate font-medium text-fg">{group.label}</span>
+                    <span className="shrink-0 font-mono font-bold tabular-nums text-muted">
+                      {group.workers} planned · {percentage}% of planned people
+                    </span>
+                  </div>
+                  <div className="h-2.5 overflow-hidden rounded-full bg-surface">
+                    <div
+                      className={cn("h-full rounded-full", group.color)}
+                      style={{ width: `${percentage}%` }}
+                    />
+                  </div>
                 </div>
-                <div className="h-2.5 overflow-hidden rounded-full bg-surface">
-                  <div className={cn("h-full rounded-full", group.color)} style={{ width: `${percentage}%` }} />
-                </div>
-              </div>
               );
             })}
           </div>
         </div>
         <div className="overflow-x-auto rounded-xl border border-border">
-          <table className="table-clear w-full min-w-[680px] border-collapse text-left text-xs" aria-label="Work plan activities">
+          <table
+            className="table-clear w-full min-w-[680px] border-collapse text-left text-xs"
+            aria-label="Work plan activities"
+          >
             <thead>
               <tr>
-                <th scope="col" className="w-12 px-3 py-2 text-center">No.</th>
-                <th scope="col" className="px-3 py-2">Location</th>
-                <th scope="col" className="px-3 py-2">Work scope</th>
-                <th scope="col" className="px-3 py-2">Assigned crew / contractor</th>
+                <th scope="col" className="w-12 px-3 py-2 text-center">
+                  No.
+                </th>
+                <th scope="col" className="px-3 py-2">
+                  Location
+                </th>
+                <th scope="col" className="px-3 py-2">
+                  Work scope
+                </th>
+                <th scope="col" className="px-3 py-2">
+                  Assigned crew / contractor
+                </th>
               </tr>
             </thead>
             <tbody>
               {report.dailyReport.activities.map((activity, index) => (
                 <tr key={`${activity.scope}-${index}`} className="border-t border-border/70">
-                  <td className="px-3 py-2.5 text-center font-mono font-bold text-accent">{index + 1}</td>
+                  <td className="px-3 py-2.5 text-center font-mono font-bold text-accent">
+                    {index + 1}
+                  </td>
                   <td className="whitespace-nowrap px-3 py-2.5 font-medium text-fg">
-                    {activity.level ? `Level ${activity.level}` : "Site"}{activity.tower ? ` · Tower ${activity.tower}` : ""}
+                    {activity.level ? `Level ${activity.level}` : "Site"}
+                    {activity.tower ? ` · Tower ${activity.tower}` : ""}
                   </td>
                   <td className="px-3 py-2.5 font-medium text-fg">{activity.scope}</td>
                   <td className="px-3 py-2.5 text-muted">{activity.workers}</td>
@@ -333,7 +454,9 @@ function Home() {
       <Card className="p-3 sm:p-5">
         <div className="mb-3 flex items-center justify-between gap-2">
           <h2 className="font-display text-base font-semibold sm:text-lg">MEP matrix</h2>
-          <Link to="/matrix" className="text-xs font-medium text-accent hover:underline">Full screen →</Link>
+          <Link to="/matrix" className="text-xs font-medium text-accent hover:underline">
+            Full screen →
+          </Link>
         </div>
         <div className="-mx-1 overflow-x-auto">
           <MepMatrix />
@@ -346,32 +469,49 @@ function Home() {
           Notes & quick links
         </h2>
         <div className="grid gap-2 sm:grid-cols-2">
-          <Link to="/material" className="flex items-center gap-3 rounded-lg border border-border bg-surface-2 px-3 py-3 transition hover:border-accent">
+          <Link
+            to="/material"
+            className="flex items-center gap-3 rounded-lg border border-border bg-surface-2 px-3 py-3 transition hover:border-accent"
+          >
             <Package className="size-5 shrink-0 text-accent" aria-hidden="true" />
             <div className="min-w-0">
               <p className="text-sm font-medium">Material delivered</p>
-              <p className="text-xs text-muted">{report.poSummary.toOrder} lines to order · bal {report.orderTotals.total}</p>
+              <p className="text-xs text-muted">
+                {report.poSummary.toOrder} lines to order · bal {report.orderTotals.total}
+              </p>
             </div>
           </Link>
-          <Link to="/po-log" className="flex items-center gap-3 rounded-lg border border-border bg-surface-2 px-3 py-3 transition hover:border-accent">
+          <Link
+            to="/po-log"
+            className="flex items-center gap-3 rounded-lg border border-border bg-surface-2 px-3 py-3 transition hover:border-accent"
+          >
             <AlertTriangle className="size-5 shrink-0 text-warn" aria-hidden="true" />
             <div className="min-w-0">
               <p className="text-sm font-medium">Issues / PO log</p>
               <p className="text-xs text-muted">Purchase orders & outstanding</p>
             </div>
           </Link>
-          <Link to="/manpower" className="flex items-center gap-3 rounded-lg border border-border bg-surface-2 px-3 py-3 transition hover:border-accent">
+          <Link
+            to="/manpower"
+            className="flex items-center gap-3 rounded-lg border border-border bg-surface-2 px-3 py-3 transition hover:border-accent"
+          >
             <HardHat className="size-5 shrink-0 text-ok" aria-hidden="true" />
             <div className="min-w-0">
               <p className="text-sm font-medium">Workers</p>
               <p className="text-xs text-muted">Open the full attendance register</p>
             </div>
           </Link>
-          <Link to="/matrix" className="flex items-center gap-3 rounded-lg border border-border bg-surface-2 px-3 py-3 transition hover:border-accent">
+          <Link
+            to="/matrix"
+            className="flex items-center gap-3 rounded-lg border border-border bg-surface-2 px-3 py-3 transition hover:border-accent"
+          >
             <TrendingUp className="size-5 shrink-0 text-accent" aria-hidden="true" />
             <div className="min-w-0">
               <p className="text-sm font-medium">Progress</p>
-              <p className="text-xs text-muted">Overall {pct(s.overall)} · CW {pct(s.coldWater)} · San {pct(s.sanitary)}</p>
+              <p className="text-xs text-muted">
+                Overall {pct(live.packages.overall)} · CW {pct(live.packages.coldWater)} · San{" "}
+                {pct(live.packages.sanitary)}
+              </p>
             </div>
           </Link>
         </div>

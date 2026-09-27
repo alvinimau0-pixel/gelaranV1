@@ -53,6 +53,23 @@ export type DailyReport = {
   activities: DailyActivity[];
 };
 
+export type PlannedManpower = {
+  total: number;
+  direct: number;
+  subcontractor: number;
+};
+
+export function plannedManpower(
+  dailyReport: Pick<DailyReport, "totalWorkers" | "subcontractors">,
+): PlannedManpower {
+  const subcontractor = dailyReport.subcontractors.reduce(
+    (sum, row) => sum + Math.max(0, Number(row.workers) || 0),
+    0,
+  );
+  const total = Math.max(subcontractor, Math.max(0, Number(dailyReport.totalWorkers) || 0));
+  return { total, direct: Math.max(0, total - subcontractor), subcontractor };
+}
+
 export type ReportData = Omit<
   typeof meta,
   "floors" | "orders" | "aipoon" | "ariyan" | "itemGaps" | "dailyReport"
@@ -70,11 +87,39 @@ const seed = { ...meta, ...prog } as unknown as ReportData;
 const approvedData = approved as unknown as Partial<ReportData>;
 
 function fallbackRows<T>(active: T[] | undefined, approvedRows: T[] | undefined): T[] {
-  return active?.length ? active : approvedRows ?? [];
+  return active?.length ? active : (approvedRows ?? []);
+}
+
+function isCoherentDailyReport(value: DailyReport | undefined): value is DailyReport {
+  if (!value || !Number.isFinite(value.totalWorkers) || value.totalWorkers < 0) return false;
+  const distributionTotal = value.laborDistribution.reduce((sum, row) => sum + row.workers, 0);
+  const subcontractorTotal = value.subcontractors.reduce((sum, row) => sum + row.workers, 0);
+  return distributionTotal === value.totalWorkers && subcontractorTotal <= value.totalWorkers;
+}
+
+function selectDailyReport(
+  active: DailyReport | undefined,
+  approvedReport: DailyReport | undefined,
+): DailyReport {
+  if (isCoherentDailyReport(approvedReport)) return approvedReport;
+  if (isCoherentDailyReport(active)) return active;
+  return (
+    active ??
+    approvedReport ?? {
+      date: "",
+      project: "",
+      totalWorkers: 0,
+      workHours: { start: "", finish: "" },
+      subcontractors: [],
+      laborDistribution: [],
+      activities: [],
+    }
+  );
 }
 
 export const report = {
   ...seed,
+  dailyReport: selectDailyReport(seed.dailyReport, approvedData.dailyReport),
   floors: fallbackRows(seed.floors, approvedData.floors),
   orders: fallbackRows(seed.orders, approvedData.orders),
   aipoon: fallbackRows(seed.aipoon, approvedData.aipoon),

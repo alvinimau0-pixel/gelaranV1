@@ -7,24 +7,20 @@ type ReportData = typeof initialReport;
 
 function normalizeReport(input: unknown): ReportData {
   const persisted = input && typeof input === "object" ? (input as Partial<ReportData>) : {};
-  const daily = persisted.dailyReport && typeof persisted.dailyReport === "object"
-    ? (persisted.dailyReport as Partial<ReportData["dailyReport"]>)
-    : {};
-  const progression = persisted.progression && typeof persisted.progression === "object" ? persisted.progression as ReportData["progression"] : initialReport.progression;
+  const progression =
+    persisted.progression && typeof persisted.progression === "object"
+      ? (persisted.progression as ReportData["progression"])
+      : initialReport.progression;
   return {
     ...structuredClone(initialReport),
     ...persisted,
-    progression: { A: normalizeProgressionRows(progression.A), B: normalizeProgressionRows(progression.B) },
+    progression: {
+      A: normalizeProgressionRows(progression.A),
+      B: normalizeProgressionRows(progression.B),
+    },
     meta: { ...initialReport.meta, ...(persisted.meta ?? {}) },
     site: { ...initialReport.site, ...(persisted.site ?? {}) },
-    dailyReport: {
-      ...initialReport.dailyReport,
-      ...daily,
-      workHours: { ...initialReport.dailyReport.workHours, ...(daily.workHours ?? {}) },
-      subcontractors: Array.isArray(daily.subcontractors) ? daily.subcontractors : initialReport.dailyReport.subcontractors,
-      laborDistribution: Array.isArray(daily.laborDistribution) ? daily.laborDistribution : initialReport.dailyReport.laborDistribution,
-      activities: Array.isArray(daily.activities) ? daily.activities : initialReport.dailyReport.activities,
-    },
+    dailyReport: structuredClone(initialReport.dailyReport),
   };
 }
 
@@ -58,7 +54,11 @@ export const useAppStore = create<AppState>()(
       },
       merge: (persistedState, currentState) => {
         const persisted = persistedState as { report?: unknown } | undefined;
-        return { ...currentState, ...(persistedState as object), report: normalizeReport(persisted?.report) };
+        return {
+          ...currentState,
+          ...(persistedState as object),
+          report: normalizeReport(persisted?.report),
+        };
       },
       partialize: (s) => ({ report: s.report }),
     },

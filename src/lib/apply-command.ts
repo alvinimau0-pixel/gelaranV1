@@ -12,7 +12,7 @@ import {
 import { useAppStore } from "@/lib/store";
 import { pct } from "@/lib/utils";
 import { interpretAiCommand, type AiIntent } from "@/lib/ai-command";
-import { ITEM_META, computePackageProgress } from "@/lib/mep";
+import { ITEM_META, computeLiveProgress, computePackageProgress } from "@/lib/mep";
 import { setItemRange } from "@/lib/progression";
 export { isMutatingCommand } from "@/lib/command-safety";
 
@@ -113,7 +113,9 @@ export function parseAttendance(
   return { workerName, status, date };
 }
 
-function parseTeamAttendance(text: string): { team: string; status: AttendanceStatus; date: string } | null {
+function parseTeamAttendance(
+  text: string,
+): { team: string; status: AttendanceStatus; date: string } | null {
   const match = text.match(
     /^(?:mark|set|update)\s+(?:everyone|all workers|the whole team)\s+(?:in\s+)?(team\s*[\w-]+)\s+(?:as\s+)?(present|absent|leave|off)(?:\s+(?:for\s+|on\s+)?(today|yesterday|tomorrow|\d{4}-\d{2}-\d{2}))?$/i,
   );
@@ -138,14 +140,27 @@ function parseAllAttendance(text: string): { status: AttendanceStatus; date: str
   };
 }
 
-function parseAddWorker(text: string): { name: string; trade?: string; team?: string; subcontractor?: string } | null {
-  const match = text.trim().match(/^add\s+(?:a\s+)?worker\s+["']?(.+?)["']?(?:,?\s+trade\s*[:=]\s*(.+?))?(?:,?\s+team\s*[:=]\s*(.+?))?(?:,?\s+subcontractor\s*[:=]\s*(.+?))?$/i);
+function parseAddWorker(
+  text: string,
+): { name: string; trade?: string; team?: string; subcontractor?: string } | null {
+  const match = text
+    .trim()
+    .match(
+      /^add\s+(?:a\s+)?worker\s+["']?(.+?)["']?(?:,?\s+trade\s*[:=]\s*(.+?))?(?:,?\s+team\s*[:=]\s*(.+?))?(?:,?\s+subcontractor\s*[:=]\s*(.+?))?$/i,
+    );
   if (!match) return null;
-  return { name: match[1].trim(), trade: match[2]?.trim(), team: match[3]?.trim(), subcontractor: match[4]?.trim() };
+  return {
+    name: match[1].trim(),
+    trade: match[2]?.trim(),
+    team: match[3]?.trim(),
+    subcontractor: match[4]?.trim(),
+  };
 }
 
 function parseRemoveWorker(text: string): string | null {
-  const match = text.trim().match(/^(?:remove|delete|deactivate)\s+(?:worker\s+)?["']?(.+?)["']?$/i);
+  const match = text
+    .trim()
+    .match(/^(?:remove|delete|deactivate)\s+(?:worker\s+)?["']?(.+?)["']?$/i);
   return match?.[1]?.trim() || null;
 }
 
@@ -198,16 +213,22 @@ function intentToCommand(intent: AiIntent): string | null {
     intent.value != null
   )
     return `update ${intent.item} tower ${intent.tower} level ${intent.levelFrom} to level ${intent.levelTo} ${intent.value}%`;
-  if (intent.action === "update_manpower" && intent.value !== null) return `set on site to ${intent.value}`;
+  if (intent.action === "update_manpower" && intent.value !== null)
+    return `set on site to ${intent.value}`;
   if (intent.action === "update_weather" && intent.text) return `set weather to "${intent.text}"`;
   if (intent.action === "update_focus" && intent.text) return `set today focus to "${intent.text}"`;
   if (intent.action === "add_worker" && intent.workerName) {
-    const details = [intent.trade ? `trade: ${intent.trade}` : null, intent.team ? `team: ${intent.team}` : null, intent.subcontractor ? `subcontractor: ${intent.subcontractor}` : null]
+    const details = [
+      intent.trade ? `trade: ${intent.trade}` : null,
+      intent.team ? `team: ${intent.team}` : null,
+      intent.subcontractor ? `subcontractor: ${intent.subcontractor}` : null,
+    ]
       .filter(Boolean)
       .join(", ");
     return `add worker "${intent.workerName}"${details ? `, ${details}` : ""}`;
   }
-  if (intent.action === "remove_worker" && intent.workerName) return `remove worker "${intent.workerName}"`;
+  if (intent.action === "remove_worker" && intent.workerName)
+    return `remove worker "${intent.workerName}"`;
   return null;
 }
 
@@ -244,9 +265,10 @@ export async function applyCommand(text: string, useAi = true): Promise<string> 
 
   if (/^(status|summary|progress|how.*(going|doing)|dashboard)/i.test(lower)) {
     const s = store.report.site;
+    const live = computeLiveProgress(store.report.progression, store.report.items);
     return [
       `Here’s the snapshot right now:`,
-      `Overall **${pct(s.overall)}** · Cold water **${pct(s.coldWater)}** · Sanitary **${pct(s.sanitary)}** · Irrigation **${pct(s.irrigation)}**`,
+      `Overall **${pct(live.packages.overall)}** · Cold water **${pct(live.packages.coldWater)}** · Sanitary **${pct(live.packages.sanitary)}** · Irrigation **${pct(live.packages.irrigation)}**`,
       `On site: **${s.men}** people · Weather: ${s.weather} · ${s.shift} shift`,
       `Today’s focus: ${s.today}`,
     ].join("\n");
@@ -258,7 +280,9 @@ export async function applyCommand(text: string, useAi = true): Promise<string> 
   ) {
     try {
       const summary = await getAttendanceSummary({
-        data: { date: resolveDate(lower.match(/today|yesterday|tomorrow|\d{4}-\d{2}-\d{2}/i)?.[0]) },
+        data: {
+          date: resolveDate(lower.match(/today|yesterday|tomorrow|\d{4}-\d{2}-\d{2}/i)?.[0]),
+        },
       });
       const requested = /absent/i.test(lower)
         ? "absent"
@@ -333,7 +357,8 @@ export async function applyCommand(text: string, useAi = true): Promise<string> 
     try {
       const result = await setAttendanceByName({ data: attendance });
       refreshAttendanceTable();
-      const dateLabel = attendance.date === todayInKualaLumpur().iso ? "today" : `on ${attendance.date}`;
+      const dateLabel =
+        attendance.date === todayInKualaLumpur().iso ? "today" : `on ${attendance.date}`;
       return `Got it — **${result.workerName}** is now **${attendanceLabels[attendance.status]}** ${dateLabel}.`;
     } catch (error) {
       return `Couldn’t update attendance. ${sanitizeError(error)}`;
@@ -420,7 +445,8 @@ export async function applyCommand(text: string, useAi = true): Promise<string> 
   if (naturalProgressMatch) {
     const field = naturalProgressMatch[2].replace(/\s+/g, "").toLowerCase() as ProgressField;
     const value = parsePercent(naturalProgressMatch[1]);
-    if (!(field in progressLabels) || value === null) return "Please give a progress value from 0% to 100%.";
+    if (!(field in progressLabels) || value === null)
+      return "Please give a progress value from 0% to 100%.";
     store.updateSite({ [field]: value } as Partial<typeof store.report.site>);
     return `Got it — ${formatProgress(field, value)}.`;
   }
@@ -439,10 +465,13 @@ export async function applyCommand(text: string, useAi = true): Promise<string> 
     return `Adjusted — ${formatProgress(field, value)}.`;
   }
 
-  const weatherMatch = lower.match(/(?:set|update|change)?\s*weather\s*(?:to|=|:)\s*["']?(.+?)["']?$/i);
+  const weatherMatch = lower.match(
+    /(?:set|update|change)?\s*weather\s*(?:to|=|:)\s*["']?(.+?)["']?$/i,
+  );
   if (weatherMatch) {
     const weather = weatherMatch[1].trim().replace(/["']$/g, "");
-    if (weather.length < 2 || weather.length > 40) return "Weather description should be 2–40 characters.";
+    if (weather.length < 2 || weather.length > 40)
+      return "Weather description should be 2–40 characters.";
     store.updateSite({ weather });
     return `Weather set to **${weather}**.`;
   }
@@ -452,7 +481,8 @@ export async function applyCommand(text: string, useAi = true): Promise<string> 
   );
   if (focusMatch) {
     const focus = focusMatch[1].trim().replace(/["']$/g, "");
-    if (focus.length < 3 || focus.length > 100) return "Focus should be between 3 and 100 characters.";
+    if (focus.length < 3 || focus.length > 100)
+      return "Focus should be between 3 and 100 characters.";
     store.updateSite({ today: focus });
     return `Today’s focus is now **${focus}**.`;
   }

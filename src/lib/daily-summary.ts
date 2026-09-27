@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { getSql } from "@/lib/db";
-import { report as seedReport } from "@/lib/report-data";
+import { plannedManpower, report as seedReport } from "@/lib/report-data";
 import { todayInKualaLumpur } from "@/lib/attendance";
 import type { ProgressionData } from "@/lib/progression";
 import { computeLiveProgress } from "@/lib/mep";
@@ -22,8 +22,14 @@ export type DailySummary = {
     direct: number;
     subcontractor: number;
   };
+  planned: { total: number; direct: number; subcontractor: number };
   towers: { A: number; B: number; overall: number };
-  workers: { name: string; workerType: "Direct" | "Subcontractor"; status: string; time: string | null }[];
+  workers: {
+    name: string;
+    workerType: "Direct" | "Subcontractor";
+    status: string;
+    time: string | null;
+  }[];
 };
 
 type SummaryRow = {
@@ -51,6 +57,7 @@ function progressionFromSeed(): ProgressionData {
 }
 
 function toSummary(row: SummaryRow): DailySummary {
+  const planned = plannedManpower(seedReport.dailyReport);
   return {
     id: row.id,
     summaryDate: row.summary_date,
@@ -64,6 +71,7 @@ function toSummary(row: SummaryRow): DailySummary {
       direct: row.direct_count,
       subcontractor: row.subcontractor_count,
     },
+    planned,
     towers: {
       A: Number(row.tower_a_progress),
       B: Number(row.tower_b_progress),
@@ -102,16 +110,31 @@ export async function buildDailySummary(date?: string): Promise<DailySummary> {
   `;
 
   const seed = progressionFromSeed();
-  const [progressionRow] = await sql<{ data: ProgressionData }>`select data from mep_progression where id = 1`;
+  const [progressionRow] = await sql<{
+    data: ProgressionData;
+  }>`select data from mep_progression where id = 1`;
   const progression = progressionRow?.data ?? seed;
   const live = computeLiveProgress(progression, seedReport.items);
   const a = live.towers.A ?? 0;
   const b = live.towers.B ?? 0;
   const payload = workers.map((worker) => ({
     name: worker.name,
-    workerType: worker.worker_type === "Subcontractor" ? "Subcontractor" as const : "Direct" as const,
-    status: worker.status === "Present" ? "Present" : worker.status === "Absent" ? "Absent" : worker.status === "Leave" ? "MC" : worker.status === "Off" ? "Off" : "Blank",
-    time: worker.status === "Present" && worker.check_in && worker.check_out ? `${worker.check_in.slice(0, 5)}-${worker.check_out.slice(0, 5)}` : null,
+    workerType:
+      worker.worker_type === "Subcontractor" ? ("Subcontractor" as const) : ("Direct" as const),
+    status:
+      worker.status === "Present"
+        ? "Present"
+        : worker.status === "Absent"
+          ? "Absent"
+          : worker.status === "Leave"
+            ? "MC"
+            : worker.status === "Off"
+              ? "Off"
+              : "Blank",
+    time:
+      worker.status === "Present" && worker.check_in && worker.check_out
+        ? `${worker.check_in.slice(0, 5)}-${worker.check_out.slice(0, 5)}`
+        : null,
   }));
   const count = (status: string) => payload.filter((worker) => worker.status === status).length;
   const direct = payload.filter((worker) => worker.workerType === "Direct").length;
@@ -166,7 +189,30 @@ export const listDailySummaries = createServerFn({ method: "GET" })
     return rows.map(toSummary);
   });
 
-export const getLatestDailySummary = createServerFn({ method: "GET" }).handler(async (): Promise<DailySummary | null> => {
-  const rows = await listDailySummaries({ data: { limit: 1 } });
-  return rows[0] ?? null;
-});
+export const getLatestDailySummary = createServerFn({ method: "GET" }).handler(
+  async (): Promise<DailySummary | null> => {
+    const rows = await listDailySummaries({ data: { limit: 1 } });
+    const latest = rows[0];
+    if (!latest) return null;
+    try {
+      const [progressionRow] = await (await getSql())<{
+        data: ProgressionData;
+      }>`select data from mep_progression where id = 1`;
+      const live = computeLiveProgress(
+        progressionRow?.data ?? progressionFromSeed(),
+        seedReport.items,
+      );
+      return {
+        ...latest,
+        towers: {
+          A: live.towers.A ?? 0,
+          B: live.towers.B ?? 0,
+          overall: live.packages.overall,
+        },
+      };
+    } catch (error) {
+      console.error("[daily-summary] live progress refresh failed; using stored summary", error);
+      return latest;
+    }
+  },
+);
