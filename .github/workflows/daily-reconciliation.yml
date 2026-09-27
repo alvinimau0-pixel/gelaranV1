@@ -1,0 +1,54 @@
+name: Daily manpower and progress reconciliation
+
+on:
+  schedule:
+    # 02:00 Malaysia time (UTC+8), every day.
+    - cron: "0 18 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: daily-reconciliation
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  reconcile:
+    name: Audit production reconciliation
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      E2E_BASE_URLS: https://gelaran-v1-gm-2030.vercel.app
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.x"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run deterministic manpower and progress audit
+        run: npm run audit:reconciliation | tee reconciliation-audit.json
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run production route and parity checks
+        run: npm run test:e2e 2>&1 | tee production-e2e-report.json
+
+      - name: Upload daily audit reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reconciliation-reports-${{ github.run_id }}
+          path: |
+            reconciliation-audit.json
+            production-e2e-report.json
+          if-no-files-found: warn
+          retention-days: 30

@@ -80,6 +80,14 @@ async function testTarget(target) {
         name: "overview manpower content",
         pass: bodyText.includes("planned") || bodyText.includes("workers"),
       });
+      routeResult.assertions.push({
+        name: "planned manpower reconciles to 27 = 12 direct + 15 subcontractor",
+        pass:
+          bodyText.includes("27 total") &&
+          bodyText.includes("MSK direct / field team") &&
+          bodyText.includes("12 planned") &&
+          bodyText.includes("12 / 15"),
+      });
     }
     if (route === "photos")
       routeResult.assertions.push({
@@ -123,6 +131,42 @@ async function testTarget(target) {
       });
     results.push(routeResult);
   }
+
+  const progressFrom = (text, pattern) => {
+    const match = text.match(pattern);
+    return match ? Number(match[1]) : null;
+  };
+  const progressPages = [
+    { route: "home", pattern: /Overall\s+(\d+(?:\.\d+)?)%/ },
+    { route: "tower-a", pattern: /(\d+(?:\.\d+)?)%\s+live progress/ },
+    { route: "tower-b", pattern: /(\d+(?:\.\d+)?)%\s+live progress/ },
+    { route: "daily-summary", pattern: /Overall progress[\s\S]{0,120}?(\d+(?:\.\d+)?)%/i },
+  ];
+  const progressValues = {};
+  for (const entry of progressPages) {
+    await desktop.goto(`${target.base}/${entry.route}`, {
+      waitUntil: "domcontentloaded",
+      timeout: 30000,
+    });
+    await desktop.waitForTimeout(1000);
+    progressValues[entry.route] = progressFrom(
+      await desktop.locator("body").innerText(),
+      entry.pattern,
+    );
+  }
+  const numericProgress = Object.values(progressValues).filter((value) => Number.isFinite(value));
+  results.push({
+    target: target.name,
+    interaction: "cross-module progress reconciliation",
+    values: progressValues,
+    assertions: [
+      {
+        name: "home, towers, and daily summary expose one progress percentage",
+        pass:
+          numericProgress.length === progressPages.length && new Set(numericProgress).size === 1,
+      },
+    ],
+  });
 
   // Desktop interaction: Overview package filter.
   await desktop.goto(`${target.base}/home`, { waitUntil: "domcontentloaded", timeout: 30000 });
