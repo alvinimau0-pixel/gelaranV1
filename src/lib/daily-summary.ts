@@ -1,35 +1,21 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { getSql } from "@/lib/db";
-import { plannedManpower, report as seedReport } from "@/lib/report-data";
-import { todayInKualaLumpur } from "@/lib/attendance";
+import { report as seedReport } from "@/lib/report-data";
 import type { ProgressionData } from "@/lib/progression";
+import { normalizeProgressionRows } from "@/lib/mep";
 import { computeLiveProgress } from "@/lib/mep";
 
-const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Expected YYYY-MM-DD");
-const summaryInput = z.object({ date: dateSchema.optional() });
+const summaryInput = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+});
 
-export type DailySummary = {
-  id: number | null;
-  summaryDate: string;
-  generatedAt: string | null;
-  attendance: {
-    present: number;
-    absent: number;
-    mc: number;
-    off: number;
-    blank: number;
-    direct: number;
-    subcontractor: number;
-  };
-  planned: { total: number; direct: number; subcontractor: number };
-  towers: { A: number; B: number; overall: number };
-  workers: {
-    name: string;
-    workerType: "Direct" | "Subcontractor";
-    status: string;
-    time: string | null;
-  }[];
+type WorkerRow = {
+  name: string;
+  worker_type: string;
+  status: string;
+  check_in: string | null;
+  check_out: string | null;
 };
 
 type SummaryRow = {
@@ -45,68 +31,95 @@ type SummaryRow = {
   tower_a_progress: number;
   tower_b_progress: number;
   overall_progress: number;
-  payload: DailySummary["workers"];
+  payload: unknown;
 };
 
-function summaryDate(date?: string) {
-  return date ?? todayInKualaLumpur().iso;
-}
-
-function progressionFromSeed(): ProgressionData {
-  return structuredClone(seedReport.progression) as ProgressionData;
-}
+export type DailySummary = {
+  id: number;
+  date: string;
+  generatedAt: string;
+  attendance: {
+    present: number;
+    absent: number;
+    mc: number;
+    off: number;
+  };
+  manpower: {
+    direct: number;
+    subcontractor: number;
+  };
+  towers: {
+    A: number;
+    B: number;
+    overall: number;
+  };
+  workers: Array<{
+    name: string;
+    workerType: "Direct" | "Subcontractor";
+    status: "Present" | "Absent" | "MC" | "Off" | "Blank";
+    time: string | null;
+  }>;
+};
 
 function toSummary(row: SummaryRow): DailySummary {
-  const planned = plannedManpower(seedReport.dailyReport);
+  const payload = (row.payload ?? []) as DailySummary["workers"];
   return {
     id: row.id,
-    summaryDate: row.summary_date,
+    date: row.summary_date,
     generatedAt: row.generated_at,
     attendance: {
       present: row.present_count,
       absent: row.absent_count,
       mc: row.mc_count,
       off: row.off_count,
-      blank: Math.max(0, row.payload.filter((worker) => worker.status === "Blank").length),
+    },
+    manpower: {
       direct: row.direct_count,
       subcontractor: row.subcontractor_count,
     },
-    planned,
     towers: {
-      A: Number(row.tower_a_progress),
-      B: Number(row.tower_b_progress),
-      overall: Number(row.overall_progress),
+      A: row.tower_a_progress,
+      B: row.tower_b_progress,
+      overall: row.overall_progress,
     },
-    workers: row.payload,
+    workers: payload,
   };
 }
 
-export async function buildDailySummary(date?: string): Promise<DailySummary> {
-  const summaryDateValue = summaryDate(date);
+function progressionFromSeed(): ProgressionData {
+  const A = normalizeProgressionRows(seedReport.progression.A);
+  return { A, B: structuredClone(A) } as ProgressionData;
+}
+
+async function buildDailySummary(date?: string) {
   const sql = await getSql();
+  const summaryDateValue =
+    date ??
+    new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kuala_Lumpur" });
+
   await sql`
-    update attendance
-    set check_in = coalesce(check_in, '08:00'), check_out = coalesce(check_out, '19:00'), updated_at = now()
-    where attendance_date = ${summaryDateValue} and status = 'Present'
-  `;
-  await sql`
-    insert into attendance (worker_id, attendance_date, status, check_in, check_out)
-    select id, ${summaryDateValue}, 'Present', '08:00', '19:00'
-    from workers where active = true
-    on conflict (worker_id, attendance_date) do nothing
+    create table if not exists daily_summary (
+      id serial primary key,
+      summary_date date not null unique,
+      present_count integer not null default 0,
+      absent_count integer not null default 0,
+      mc_count integer not null default 0,
+      off_count integer not null default 0,
+      direct_count integer not null default 0,
+      subcontractor_count integer not null default 0,
+      tower_a_progress double precision not null default 0,
+      tower_b_progress double precision not null default 0,
+      overall_progress double precision not null default 0,
+      payload jsonb not null default '[]'::jsonb,
+      generated_at timestamptz not null default now()
+    )
   `;
 
-  const workers = await sql<{
-    name: string;
-    worker_type: "Direct" | "Subcontractor" | null;
-    status: "Present" | "Absent" | "Off" | "Leave" | null;
-    check_in: string | null;
-    check_out: string | null;
-  }>`
-    select w.name, w.worker_type, a.status, a.check_in, a.check_out
-    from workers w
-    left join attendance a on a.worker_id = w.id and a.attendance_date = ${summaryDateValue}
-    where w.active = true order by w.name asc
+  const workers = await sql<WorkerRow>`
+    select name, worker_type, status, check_in, check_out
+    from attendance_workers
+    where active = true
+    order by name
   `;
 
   const seed = progressionFromSeed();
@@ -115,8 +128,8 @@ export async function buildDailySummary(date?: string): Promise<DailySummary> {
   }>`select data from mep_progression where id = 1`;
   const progression = progressionRow?.data ?? seed;
   const live = computeLiveProgress(progression, seedReport.items);
-  const a = live.towers.A ?? 0;
-  const b = live.towers.B ?? 0;
+  const a = live.towersLegacy.A ?? 0;
+  const b = live.towersLegacy.B ?? 0;
   const payload = workers.map((worker) => ({
     name: worker.name,
     workerType:
@@ -146,7 +159,7 @@ export async function buildDailySummary(date?: string): Promise<DailySummary> {
       overall_progress, payload, generated_at
     ) values (
       ${summaryDateValue}, ${count("Present")}, ${count("Absent")}, ${count("MC")}, ${count("Off")},
-      ${direct}, ${subcontractor}, ${a}, ${b}, ${live.packages.overall}, ${JSON.stringify(payload)}::jsonb, now()
+      ${direct}, ${subcontractor}, ${a}, ${b}, ${live.packagesLegacy.overall ?? 0}, ${JSON.stringify(payload)}::jsonb, now()
     )
     on conflict (summary_date) do update set
       present_count = excluded.present_count,
@@ -205,9 +218,9 @@ export const getLatestDailySummary = createServerFn({ method: "GET" }).handler(
       return {
         ...latest,
         towers: {
-          A: live.towers.A ?? 0,
-          B: live.towers.B ?? 0,
-          overall: live.packages.overall,
+          A: live.towersLegacy.A ?? 0,
+          B: live.towersLegacy.B ?? 0,
+          overall: live.packagesLegacy.overall ?? 0,
         },
       };
     } catch (error) {
