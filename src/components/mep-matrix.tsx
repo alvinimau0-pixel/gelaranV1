@@ -48,10 +48,16 @@ function EditableMepMatrix({ tower }: { tower?: "A" | "B" }) {
   const validationIssues = validateProgression(report.progression, items);
   const live = computeLiveProgress(report.progression, report.items);
   const packageProgress = (code: keyof typeof TASK_GROUPS) => {
-    if (code === "CW") return live.packages.coldWater;
-    if (code === "SAN") return live.packages.sanitary;
-    if (code === "VO") return live.packages.irrigation;
-    return null;
+    const result =
+      code === "CW"
+        ? live.packages.coldWater
+        : code === "SAN"
+          ? live.packages.sanitary
+          : code === "VO"
+            ? live.packages.irrigation
+            : null;
+    if (!result) return null;
+    return result.overallProgress ?? result.measuredProgress;
   };
   const overallFor = (item: string) => {
     const values = towers
@@ -113,10 +119,10 @@ function EditableMepMatrix({ tower }: { tower?: "A" | "B" }) {
       const store = useAppStore.getState();
       store.updateReport({ progression: result.progression });
       store.updateSite({
-        coldWater: pkgs.coldWater,
-        sanitary: pkgs.sanitary,
-        irrigation: pkgs.irrigation,
-        overall: pkgs.overall,
+        coldWater: pkgs.coldWater ?? 0,
+        sanitary: pkgs.sanitary ?? 0,
+        irrigation: pkgs.irrigation ?? 0,
+        overall: pkgs.overall ?? 0,
       });
       window.dispatchEvent(new Event("gelaran:progression-updated"));
       setSel(null);
@@ -130,7 +136,6 @@ function EditableMepMatrix({ tower }: { tower?: "A" | "B" }) {
 
   useEffect(() => {
     if (!sel) return;
-
     const previousTrigger = triggerRef.current;
     const drawer = drawerRef.current;
     const focusable = drawer
@@ -139,7 +144,6 @@ function EditableMepMatrix({ tower }: { tower?: "A" | "B" }) {
         ).filter((element) => !element.hasAttribute("disabled"))
       : [];
     focusable[0]?.focus();
-
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         event.preventDefault();
@@ -157,7 +161,6 @@ function EditableMepMatrix({ tower }: { tower?: "A" | "B" }) {
         first.focus();
       }
     }
-
     document.addEventListener("keydown", onKeyDown);
     return () => {
       document.removeEventListener("keydown", onKeyDown);
@@ -246,27 +249,14 @@ function EditableMepMatrix({ tower }: { tower?: "A" | "B" }) {
           </span>
         </div>
         <div className="overflow-x-auto border-t border-border">
-          <table
-            className="w-full min-w-[620px] border-collapse text-left text-[10px]"
-            aria-label="MEP package task key"
-          >
-            <caption className="sr-only">
-              Full-name task breakdown synchronized with the shared MEP progression
-            </caption>
+          <table className="w-full min-w-[620px] border-collapse text-left text-[10px]" aria-label="MEP package task key">
+            <caption className="sr-only">Full-name task breakdown synchronized with the shared MEP progression</caption>
             <thead>
               <tr className="bg-surface-2 text-[9px] font-semibold uppercase tracking-wide text-muted">
-                <th scope="col" className="px-3 py-2 sm:px-4">
-                  Package
-                </th>
-                <th scope="col" className="px-2 py-2">
-                  Stage
-                </th>
-                <th scope="col" className="px-2 py-2">
-                  Work item
-                </th>
-                <th scope="col" className="px-2 py-2 text-right sm:px-4">
-                  Progress
-                </th>
+                <th scope="col" className="px-3 py-2 sm:px-4">Package</th>
+                <th scope="col" className="px-2 py-2">Stage</th>
+                <th scope="col" className="px-2 py-2">Work item</th>
+                <th scope="col" className="px-2 py-2 text-right sm:px-4">Progress</th>
               </tr>
             </thead>
             <tbody>
@@ -287,21 +277,12 @@ function EditableMepMatrix({ tower }: { tower?: "A" | "B" }) {
                 .flatMap(([code, group]) =>
                   group.tasks.map((task, index) => (
                     <tr key={task.id} className="border-t border-border/70">
-                      <th scope="row" className="px-3 py-2 font-semibold text-fg sm:px-4">
-                        {group.label}
-                      </th>
+                      <th scope="row" className="px-3 py-2 font-semibold text-fg sm:px-4">{group.label}</th>
                       <td className="px-2 py-2 text-muted">{task.stage}</td>
-                      <td className="max-w-[23rem] px-2 py-2 text-fg" title={group.logic}>
-                        {task.short}
-                      </td>
+                      <td className="max-w-[23rem] px-2 py-2 text-fg" title={group.logic}>{task.short}</td>
                       {index === 0 ? (
-                        <td
-                          rowSpan={group.tasks.length}
-                          className="px-2 py-2 text-right font-mono font-bold text-fg sm:px-4"
-                        >
-                          {packageProgress(code) == null
-                            ? "—"
-                            : `${Math.round((packageProgress(code) ?? 0) * 100)}%`}
+                        <td rowSpan={group.tasks.length} className="px-2 py-2 text-right font-mono font-bold text-fg sm:px-4">
+                          {packageProgress(code) == null ? "—" : `${Math.round((packageProgress(code) ?? 0) * 100)}%`}
                         </td>
                       ) : null}
                     </tr>
@@ -314,33 +295,16 @@ function EditableMepMatrix({ tower }: { tower?: "A" | "B" }) {
 
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-border bg-surface px-3 py-2 text-[11px] text-muted sm:text-xs">
         <span className="font-semibold text-fg">Color validation</span>
-        <span
-          className={cn(
-            "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 font-semibold",
-            validationIssues.length ? "bg-bad-bg text-bad" : "bg-ok-bg text-ok",
-          )}
-        >
-          <span
-            className={cn("size-2 rounded-full", validationIssues.length ? "bg-bad" : "bg-ok")}
-            aria-hidden="true"
-          />
+        <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 font-semibold", validationIssues.length ? "bg-bad-bg text-bad" : "bg-ok-bg text-ok")}>
+          <span className={cn("size-2 rounded-full", validationIssues.length ? "bg-bad" : "bg-ok")} aria-hidden="true" />
           {validationIssues.length ? `${validationIssues.length} invalid cells` : "All cells valid"}
         </span>
         <span className="h-4 w-px bg-border" aria-hidden="true" />
         <span className="font-semibold text-fg">Progress key · select any cell to edit</span>
         {LEGEND.map((entry) => (
-          <span
-            key={entry.label}
-            className="inline-flex items-center gap-1.5 whitespace-nowrap"
-            title={`${entry.label}: ${entry.range}`}
-          >
-            <span
-              className={cn("size-2.5 rounded-full shadow-sm", entry.className)}
-              aria-hidden="true"
-            />
-            <span>
-              {entry.label} <span className="text-subtle">({entry.range})</span>
-            </span>
+          <span key={entry.label} className="inline-flex items-center gap-1.5 whitespace-nowrap" title={`${entry.label}: ${entry.range}`}>
+            <span className={cn("size-2.5 rounded-full shadow-sm", entry.className)} aria-hidden="true" />
+            <span>{entry.label} <span className="text-subtle">({entry.range})</span></span>
           </span>
         ))}
       </div>
@@ -348,48 +312,22 @@ function EditableMepMatrix({ tower }: { tower?: "A" | "B" }) {
       <Card className="overflow-hidden p-0">
         <div className="flex items-center justify-between gap-3 border-b border-border bg-surface-2 px-3 py-2.5 sm:px-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-              Landscape progress table
-            </p>
-            <p className="mt-0.5 text-[11px] text-subtle">
-              Level-by-level view · scroll horizontally to see every work item
-            </p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted">Landscape progress table</p>
+            <p className="mt-0.5 text-[11px] text-subtle">Level-by-level view · scroll horizontally to see every work item</p>
           </div>
-          <span className="shrink-0 rounded-full bg-accent/10 px-2.5 py-1 text-[10px] font-semibold text-accent">
-            {items.length} work items
-          </span>
+          <span className="shrink-0 rounded-full bg-accent/10 px-2.5 py-1 text-[10px] font-semibold text-accent">{items.length} work items</span>
         </div>
         <div className="responsive-scroll relative overflow-x-auto overscroll-x-contain">
-          <table
-            className="responsive-table table-clear w-full min-w-[1180px] border-collapse text-left text-[10px] sm:min-w-[1320px] lg:min-w-[1500px] lg:text-[11px]"
-            aria-label="MEP progress matrix"
-          >
+          <table className="responsive-table table-clear w-full min-w-[1180px] border-collapse text-left text-[10px] sm:min-w-[1320px] lg:min-w-[1500px] lg:text-[11px]" aria-label="MEP progress matrix">
             <thead>
               <tr>
-                <th
-                  scope="col"
-                  className="sticky left-0 z-20 min-w-16 border-b border-border bg-surface-2 px-2 py-2 text-center font-semibold uppercase tracking-wide text-fg"
-                >
-                  Level
-                </th>
+                <th scope="col" className="sticky left-0 z-20 min-w-16 border-b border-border bg-surface-2 px-2 py-2 text-center font-semibold uppercase tracking-wide text-fg">Level</th>
                 {view !== "both" ? null : (
-                  <th
-                    scope="col"
-                    className="sticky left-16 z-20 min-w-14 border-b border-border bg-surface-2 px-1 py-2 text-center font-semibold uppercase tracking-wide text-fg"
-                  >
-                    Tower
-                  </th>
+                  <th scope="col" className="sticky left-16 z-20 min-w-14 border-b border-border bg-surface-2 px-1 py-2 text-center font-semibold uppercase tracking-wide text-fg">Tower</th>
                 )}
                 {items.map((item) => (
-                  <th
-                    key={item}
-                    scope="col"
-                    title={item}
-                    className="min-w-24 border-b border-l border-border bg-surface-2 px-1.5 py-2 text-center font-semibold leading-tight text-fg"
-                  >
-                    <span className="block max-w-[8rem] whitespace-normal px-0.5 text-[9px] leading-tight lg:max-w-[10rem] lg:text-[10px]">
-                      {item}
-                    </span>
+                  <th key={item} scope="col" title={item} className="min-w-24 border-b border-l border-border bg-surface-2 px-1.5 py-2 text-center font-semibold leading-tight text-fg">
+                    <span className="block max-w-[8rem] whitespace-normal px-0.5 text-[9px] leading-tight lg:max-w-[10rem] lg:text-[10px]">{item}</span>
                   </th>
                 ))}
               </tr>
@@ -401,18 +339,10 @@ function EditableMepMatrix({ tower }: { tower?: "A" | "B" }) {
                   return (
                     <tr key={`${level}-${t}`}>
                       {t === towers[0] ? (
-                        <th
-                          rowSpan={towers.length}
-                          scope="row"
-                          className="sticky left-0 z-10 border-b border-border bg-surface px-2 py-1 text-center font-semibold text-fg"
-                        >
-                          {level}
-                        </th>
+                        <th rowSpan={towers.length} scope="row" className="sticky left-0 z-10 border-b border-border bg-surface px-2 py-1 text-center font-semibold text-fg">{level}</th>
                       ) : null}
                       {view !== "both" ? null : (
-                        <td className="sticky left-16 z-[1] border-b border-border bg-surface px-1 py-1 text-center font-semibold text-muted">
-                          {t}
-                        </td>
+                        <td className="sticky left-16 z-[1] border-b border-border bg-surface px-1 py-1 text-center font-semibold text-muted">{t}</td>
                       )}
                       {items.map((item) => {
                         const raw = row?.items[item] ?? null;
@@ -446,27 +376,14 @@ function EditableMepMatrix({ tower }: { tower?: "A" | "B" }) {
             </tbody>
             <tfoot>
               <tr>
-                <th
-                  scope="row"
-                  className="sticky left-0 z-10 bg-ink px-2 py-2 text-center text-[10px] font-bold uppercase tracking-wide text-white"
-                >
-                  Overall
-                </th>
+                <th scope="row" className="sticky left-0 z-10 bg-ink px-2 py-2 text-center text-[10px] font-bold uppercase tracking-wide text-white">Overall</th>
                 {view === "both" ? (
-                  <th
-                    scope="col"
-                    className="sticky left-16 z-[1] bg-ink px-1 py-2 text-center text-[10px] font-bold text-white"
-                  >
-                    —
-                  </th>
+                  <th scope="col" className="sticky left-16 z-[1] bg-ink px-1 py-2 text-center text-[10px] font-bold text-white">—</th>
                 ) : null}
                 {items.map((item) => {
                   const value = overallFor(item);
                   return (
-                    <td
-                      key={item}
-                      className="bg-ink px-0.5 py-2 text-center font-mono text-[10px] font-bold tabular-nums text-white"
-                    >
+                    <td key={item} className="bg-ink px-1.5 py-2 text-center font-mono text-[11px] font-bold text-white">
                       {value == null ? "—" : `${Math.round(value * 100)}%`}
                     </td>
                   );
@@ -478,134 +395,54 @@ function EditableMepMatrix({ tower }: { tower?: "A" | "B" }) {
       </Card>
 
       {sel && detail ? (
-        <div
-          className="fixed inset-0 z-50 flex justify-end overscroll-contain bg-ink/30"
-          onClick={() => setSel(null)}
+        <aside
+          ref={drawerRef}
+          className="fixed inset-x-0 bottom-0 z-50 max-h-[70vh] overflow-y-auto rounded-t-2xl border border-border bg-surface p-4 shadow-2xl sm:inset-auto sm:bottom-6 sm:right-6 sm:max-h-[80vh] sm:w-[380px] sm:rounded-2xl"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="cell-editor-title"
         >
-          <aside
-            ref={drawerRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="mep-detail-title"
-            tabIndex={-1}
-            className="flex h-full w-full max-w-md flex-col overflow-y-auto bg-surface p-4 shadow-[0_8px_40px_rgba(15,23,36,0.18)] sm:p-5"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-muted">
-                  Tower {sel.tower} · Level {sel.level}
-                </p>
-                <h2
-                  id="mep-detail-title"
-                  className="mt-1 font-display text-lg font-semibold sm:text-xl"
-                >
-                  {sel.item}
-                </h2>
-              </div>
-              <button
-                type="button"
-                className="inline-flex size-11 items-center justify-center rounded-md border border-border"
-                onClick={() => setSel(null)}
-                aria-label="Close"
-              >
-                <X className="size-4" aria-hidden="true" />
-              </button>
+          <div className="mb-3 flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted">Edit cell</p>
+              <h3 id="cell-editor-title" className="font-display text-base font-semibold text-fg">
+                Tower {sel.tower} · L{sel.level}
+              </h3>
+              <p className="mt-0.5 text-xs text-muted">{sel.item}</p>
             </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Badge tone="accent">
-                {detail.meta?.package === "Irrigation"
-                  ? "Variation Orders · Irrigation"
-                  : detail.meta?.package}
-              </Badge>
-            </div>
-            <p className="mt-4 text-sm text-muted">{detail.meta?.detail}</p>
-            <div className="mt-5 rounded-xl border border-accent/30 bg-accent/5 p-3">
-              <div className="flex items-end gap-3">
-                <label className="min-w-0 flex-1">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-muted">
-                    Edit {sel.tower} · Level {sel.level}
-                  </span>
-                  <div className="mt-1 flex items-center gap-2">
-                    <input
-                      type="number"
-                      min="0"
-                      max="100"
-                      step="1"
-                      inputMode="numeric"
-                      value={draftPercent}
-                      onChange={(event) => setDraftPercent(event.target.value)}
-                      className="min-h-11 w-full rounded-lg border border-border bg-surface px-3 font-mono text-lg font-semibold tabular-nums outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
-                      aria-label={`Edit Tower ${sel.tower} level ${sel.level} ${sel.item} percentage`}
-                    />
-                    <span className="font-mono text-lg font-semibold text-muted">%</span>
-                  </div>
-                </label>
-                <button
-                  type="button"
-                  onClick={() => void saveCell()}
-                  disabled={saving}
-                  className="min-h-11 rounded-lg bg-ink px-4 text-sm font-semibold text-accent-fg disabled:cursor-wait disabled:opacity-60"
-                >
-                  {saving ? "Saving…" : "Save"}
-                </button>
-              </div>
-              <p className="mt-2 text-[11px] text-muted">
-                Save updates this tower and level in the shared matrix for every device.
-              </p>
-              {saveError ? (
-                <p role="alert" className="mt-2 text-xs font-medium text-bad">
-                  {saveError}
-                </p>
-              ) : null}
-            </div>
-            <div className="mt-5 grid grid-cols-2 gap-3">
-              <div className="rounded-lg border border-border p-3">
-                <p className="text-xs text-muted">Tower A</p>
-                <p className="mt-1 font-display text-lg font-semibold tabular-nums">
-                  {pct(detail.a)}
-                </p>
-                <div className="mt-2">
-                  <Meter value={detail.a ?? 0} />
-                </div>
-              </div>
-              <div className="rounded-lg border border-border p-3">
-                <p className="text-xs text-muted">Tower B</p>
-                <p className="mt-1 font-display text-lg font-semibold tabular-nums">
-                  {pct(detail.b)}
-                </p>
-                <div className="mt-2">
-                  <Meter value={detail.b ?? 0} />
-                </div>
-              </div>
-            </div>
-            <h3 className="mt-6 text-sm font-semibold">Related material</h3>
-            {detail.mats.length ? (
-              <ul className="mt-2 space-y-2 text-sm">
-                {detail.mats.map((m) => (
-                  <li
-                    key={m.material}
-                    className="flex justify-between gap-3 border-b border-border py-2"
-                  >
-                    <span>{m.material}</span>
-                    <span className="tabular-nums text-muted">bal {m.balance}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="mt-2 text-sm text-muted">No material line mapped.</p>
-            )}
-            {detail.meta?.drawing ? (
-              <Link
-                to="/library"
-                search={{ dwg: detail.meta.drawing }}
-                className="mt-6 inline-flex min-h-11 items-center justify-center rounded-md bg-ink px-4 text-sm font-medium text-accent-fg"
-              >
-                Open drawing {detail.meta.drawing}
-              </Link>
-            ) : null}
-          </aside>
-        </div>
+            <button type="button" onClick={() => setSel(null)} className="rounded-lg p-1.5 text-muted hover:bg-surface-2 hover:text-fg" aria-label="Close">
+              <X className="size-4" />
+            </button>
+          </div>
+          {detail.meta ? (
+            <p className="mb-3 text-[11px] leading-relaxed text-muted">{detail.meta.detail}</p>
+          ) : null}
+          <label className="block text-xs font-medium text-fg">
+            Percentage (0–100)
+            <input
+              type="number"
+              min={0}
+              max={100}
+              value={draftPercent}
+              onChange={(e) => setDraftPercent(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-border bg-surface-2 px-3 py-2 font-mono text-sm tabular-nums text-fg outline-none focus:ring-2 focus:ring-ink"
+            />
+          </label>
+          {saveError ? <p className="mt-2 text-xs text-bad">{saveError}</p> : null}
+          <div className="mt-4 flex gap-2">
+            <button
+              type="button"
+              disabled={saving}
+              onClick={saveCell}
+              className="flex-1 rounded-lg bg-ink px-3 py-2.5 text-sm font-semibold text-accent-fg disabled:opacity-60"
+            >
+              {saving ? "Saving…" : "Save"}
+            </button>
+            <button type="button" onClick={() => setSel(null)} className="rounded-lg border border-border px-3 py-2.5 text-sm font-medium text-muted hover:bg-surface-2">
+              Cancel
+            </button>
+          </div>
+        </aside>
       ) : null}
     </div>
   );
