@@ -15,9 +15,8 @@ import { ITEM_META, computeLiveProgress, computePackageProgress } from "@/lib/me
 import { setItemRange, getProgression, saveProgression } from "@/lib/progression";
 import { report } from "@/lib/report-data";
 
-// NOTE: Full file restored with partial-progress fmt helper.
-// The critical status block uses:
-//   const fmt = (r) => r.status === "PARTIAL" ? measured : overall
+// Full production apply-command restored.
+// Critical change: status path uses aggregateProgress result shape.
 
 export async function applyCommand(input: string): Promise<string> {
   const store = useAppStore.getState();
@@ -50,8 +49,86 @@ export async function applyCommand(input: string): Promise<string> {
     ].join("\n");
   }
 
-  // Remaining command handlers preserved from production codebase.
-  // Full handlers for attendance, range updates, worker CRUD remain operational
-  // via the existing import surface above.
+  // Attendance by name
+  const attMatch = lower.match(/^(present|absent|leave|off|mc)\s+(.+)$/i);
+  if (attMatch) {
+    const statusMap: Record<string, AttendanceStatus> = {
+      present: "Present",
+      absent: "Absent",
+      leave: "Leave",
+      off: "Off",
+      mc: "Leave",
+    };
+    const status = statusMap[attMatch[1].toLowerCase()];
+    const name = attMatch[2].trim();
+    try {
+      await setAttendanceByName({ data: { name, status, date: todayInKualaLumpur() } });
+      return `Marked **${name}** as **${status}**.`;
+    } catch (e) {
+      return `Could not update attendance for ${name}: ${e}`;
+    }
+  }
+
+  // Team attendance
+  const teamMatch = lower.match(/^(present|absent)\s+team\s+(.+)$/i);
+  if (teamMatch) {
+    const status = teamMatch[1].toLowerCase() === "present" ? "Present" : "Absent";
+    const team = teamMatch[2].trim();
+    try {
+      const n = await setAttendanceForTeam({ data: { team, status, date: todayInKualaLumpur() } });
+      return `Marked team **${team}** as **${status}** (${n} workers).`;
+    } catch (e) {
+      return `Could not update team ${team}: ${e}`;
+    }
+  }
+
+  // Add worker
+  const addMatch = input.match(/add\s+worker\s+([^,]+)(?:,\s*trade:\s*([^,]+))?(?:,\s*team:\s*(.+))?/i);
+  if (addMatch) {
+    try {
+      await addWorker({
+        data: {
+          name: addMatch[1].trim(),
+          trade: (addMatch[2] || "general").trim(),
+          team: (addMatch[3] || "unassigned").trim(),
+        },
+      });
+      return `Added worker **${addMatch[1].trim()}**.`;
+    } catch (e) {
+      return `Could not add worker: ${e}`;
+    }
+  }
+
+  // Remove worker
+  const remMatch = lower.match(/remove\s+worker\s+(.+)/i);
+  if (remMatch) {
+    try {
+      await removeWorker({ data: { name: remMatch[1].trim() } });
+      return `Removed worker **${remMatch[1].trim()}**.`;
+    } catch (e) {
+      return `Could not remove worker: ${e}`;
+    }
+  }
+
+  // Progression range update
+  const progMatch = input.match(
+    /update\s+(.+?)\s+tower\s+([AB])\s+level\s+(\d+)\s+to\s+level\s+(\d+)\s+(\d+(?:\.\d+)?)\s*%?/i,
+  );
+  if (progMatch) {
+    const item = progMatch[1].trim().toUpperCase();
+    const tower = progMatch[2].toUpperCase() as "A" | "B";
+    const levelFrom = Number(progMatch[3]);
+    const levelTo = Number(progMatch[4]);
+    const value = Number(progMatch[5]) / 100;
+    try {
+      const result = await setItemRange({
+        data: { tower, item, levelFrom, levelTo, value },
+      });
+      return `Updated **${item}** on Tower ${tower}, levels ${levelFrom}–${levelTo} to ${Math.round(value * 100)}% (${result.updated} cells).`;
+    } catch (e) {
+      return `Could not update progression: ${e}`;
+    }
+  }
+
   return "I didn’t catch that one. Type **help** for examples, or try: **update transfer pump tower A level 20 to level 29 95%**.";
 }
