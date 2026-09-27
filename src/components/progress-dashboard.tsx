@@ -42,13 +42,27 @@ export function ProgressDashboard({ dailySummary }: { dailySummary: DailySummary
   };
 
   const live = computeLiveProgress(progression, items);
+  const towerA = live.towers.A;
+  const towerB = live.towers.B;
+  const combined = live.combined;
   const cw = live.packages.coldWater;
   const san = live.packages.sanitary;
   const irr = live.packages.irrigation;
-  const ovr = live.packages.overall;
 
   const att = dailySummary?.attendance;
   const focusActivities = activities.filter((a) => a.scope && a.scope !== "—").slice(0, 6);
+
+  function progressLabel(result: typeof combined) {
+    if (result.status === "NO_VALID_QUANTITY_DATA") return "N/A";
+    if (result.status === "PARTIAL") {
+      return result.measuredProgress == null ? "N/A" : pct(result.measuredProgress);
+    }
+    return result.overallProgress == null ? "N/A" : pct(result.overallProgress);
+  }
+
+  const ovrDisplay = combined.overallProgress ?? combined.measuredProgress;
+  const ovrIsPartial =
+    combined.status === "PARTIAL" || combined.status === "NO_VALID_QUANTITY_DATA";
 
   return (
     <div className="space-y-4">
@@ -62,34 +76,51 @@ export function ProgressDashboard({ dailySummary }: { dailySummary: DailySummary
         <div className="rounded-xl border border-border bg-surface-2 px-3 py-3">
           <p className="text-[10px] font-semibold uppercase tracking-wide text-muted">Tower A</p>
           <p className="mt-1 font-display text-2xl font-bold tabular-nums text-fg">
-            {live.towers.A == null ? "—" : pct(live.towers.A)}
+            {progressLabel(towerA)}
           </p>
+          {towerA.status === "PARTIAL" && (
+            <p className="mt-0.5 text-[9px] text-muted">
+              Measured · {towerA.dataCompleteness.toFixed(0)}% data
+            </p>
+          )}
         </div>
         <div className="rounded-xl border border-border bg-surface-2 px-3 py-3">
           <p className="text-[10px] font-semibold uppercase tracking-wide text-muted">Tower B</p>
           <p className="mt-1 font-display text-2xl font-bold tabular-nums text-fg">
-            {live.towers.B == null ? "—" : pct(live.towers.B)}
+            {progressLabel(towerB)}
           </p>
+          {towerB.status === "PARTIAL" && (
+            <p className="mt-0.5 text-[9px] text-muted">
+              Measured · {towerB.dataCompleteness.toFixed(0)}% data
+            </p>
+          )}
         </div>
         <div className="col-span-2 rounded-xl border border-accent/30 bg-accent/10 px-3 py-3 sm:col-span-2">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-wide text-muted">
-                Overall
+                {ovrIsPartial ? "Measured Progress" : "Overall Progress"}
               </p>
               <p className="mt-1 font-display text-2xl font-bold tabular-nums text-accent">
-                {pct(ovr)}
+                {progressLabel(combined)}
               </p>
+              {ovrIsPartial && (
+                <p className="mt-0.5 text-[9px] font-medium text-amber-700">
+                  Overall: N/A — Incomplete Quantity Data
+                  <br />
+                  Completeness: {combined.dataCompleteness.toFixed(1)}%
+                </p>
+              )}
             </div>
             <div
               className="relative size-14 shrink-0 rounded-full"
               style={{
-                background: `conic-gradient(var(--color-accent, #2563eb) ${Math.round(ovr * 100)}%, #e2e8f0 0)`,
+                background: `conic-gradient(var(--color-accent, #2563eb) ${Math.round((ovrDisplay ?? 0) * 100)}%, #e2e8f0 0)`,
               }}
               aria-hidden
             >
               <div className="absolute inset-1.5 flex items-center justify-center rounded-full bg-surface text-[11px] font-bold tabular-nums text-fg">
-                {Math.round(ovr * 100)}%
+                {ovrDisplay == null ? "N/A" : `${Math.round(ovrDisplay * 100)}%`}
               </div>
             </div>
           </div>
@@ -101,7 +132,9 @@ export function ProgressDashboard({ dailySummary }: { dailySummary: DailySummary
           <p className="text-[11px] font-semibold uppercase tracking-wide text-accent">
             Package progress
           </p>
-          <span className="text-[10px] text-muted">Weights: CW 55% · SAN 30% · IRR 15%</span>
+          <span className="text-[10px] text-muted">
+            Quantity-weighted · Partial data shown as Measured
+          </span>
         </div>
         <div className="space-y-2.5">
           {(
@@ -110,22 +143,30 @@ export function ProgressDashboard({ dailySummary }: { dailySummary: DailySummary
               ["SAN · Sanitary", san],
               ["IRR · Irrigation", irr],
             ] as const
-          ).map(([label, value]) => (
-            <div key={label}>
-              <div className="mb-1 flex items-center justify-between gap-2 text-xs">
-                <span className="font-medium text-fg">{label}</span>
-                <span className="font-mono font-bold tabular-nums text-fg">
-                  {value == null ? "—" : pct(value)}
-                </span>
+          ).map(([label, result]) => {
+            const value = result.overallProgress ?? result.measuredProgress;
+            return (
+              <div key={label}>
+                <div className="mb-1 flex items-center justify-between gap-2 text-xs">
+                  <span className="font-medium text-fg">{label}</span>
+                  <span className="font-mono font-bold tabular-nums text-fg">
+                    {progressLabel(result)}
+                    {result.status === "PARTIAL" && (
+                      <span className="ml-1 text-[9px] font-normal text-muted">
+                        ({result.dataCompleteness.toFixed(0)}% data)
+                      </span>
+                    )}
+                  </span>
+                </div>
+                <div className="h-2.5 overflow-hidden rounded-full bg-surface-2">
+                  <div
+                    className={cn("h-full rounded-full transition-all", barColor(value))}
+                    style={{ width: `${Math.round((value ?? 0) * 100)}%` }}
+                  />
+                </div>
               </div>
-              <div className="h-2.5 overflow-hidden rounded-full bg-surface-2">
-                <div
-                  className={cn("h-full rounded-full transition-all", barColor(value))}
-                  style={{ width: `${Math.round((value ?? 0) * 100)}%` }}
-                />
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </Card>
 
