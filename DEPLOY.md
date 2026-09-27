@@ -11,4 +11,4 @@ URL: https://gelaran-v1-gm-2030.vercel.app
 - Hints cleaned up (no footer tips / empty-state instructions)
 - Package % from matrix average; progression in Postgres
 
-Redeploy production from branch **main**.
+Redeploy production from branch **main**. Merges to **main** automatically publish to the live Vercel domain.
