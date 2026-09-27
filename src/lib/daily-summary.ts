@@ -4,6 +4,7 @@ import { getSql } from "@/lib/db";
 import { report as seedReport } from "@/lib/report-data";
 import { todayInKualaLumpur } from "@/lib/attendance";
 import type { ProgressionData } from "@/lib/progression";
+import { computeLiveProgress } from "@/lib/mep";
 
 const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Expected YYYY-MM-DD");
 const summaryInput = z.object({ date: dateSchema.optional() });
@@ -45,24 +46,8 @@ function summaryDate(date?: string) {
   return date ?? todayInKualaLumpur().iso;
 }
 
-function average(values: number[]) {
-  return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
-}
-
 function progressionFromSeed(): ProgressionData {
   return structuredClone(seedReport.progression) as ProgressionData;
-}
-
-function matrixMean(data: ProgressionData): number {
-  const vals: number[] = [];
-  for (const tower of [data.A, data.B]) {
-    for (const row of tower ?? []) {
-      for (const v of Object.values(row.items ?? {})) {
-        if (typeof v === "number" && Number.isFinite(v)) vals.push(v);
-      }
-    }
-  }
-  return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
 }
 
 function toSummary(row: SummaryRow): DailySummary {
@@ -116,32 +101,12 @@ export async function buildDailySummary(date?: string): Promise<DailySummary> {
     where w.active = true order by w.name asc
   `;
 
-  // Ensure Neon snapshot matches committed seed-prog (fix drift from older sheet)
   const seed = progressionFromSeed();
   const [progressionRow] = await sql<{ data: ProgressionData }>`select data from mep_progression where id = 1`;
-  let progression = progressionRow?.data ?? seed;
-  const storedMean = matrixMean(progression);
-  const seedMean = matrixMean(seed);
-  if (Math.abs(storedMean - seedMean) > 0.03) {
-    await sql`
-      insert into mep_progression (id, data, updated_at)
-      values (1, ${JSON.stringify(seed)}::jsonb, now())
-      on conflict (id) do update
-        set data = excluded.data, updated_at = now()
-    `;
-    progression = seed;
-    console.info(
-      `[daily-summary] reseeded mep_progression (stored=${(storedMean * 100).toFixed(2)}% → seed=${(seedMean * 100).toFixed(2)}%)`,
-    );
-  }
-
-  const towerProgress = (tower: "A" | "B") => average(
-    (progression[tower] ?? []).flatMap((floor) => Object.values(floor.items ?? {})).filter(
-      (value): value is number => typeof value === "number" && Number.isFinite(value),
-    ),
-  );
-  const a = towerProgress("A");
-  const b = towerProgress("B");
+  const progression = progressionRow?.data ?? seed;
+  const live = computeLiveProgress(progression, seedReport.items);
+  const a = live.towers.A ?? 0;
+  const b = live.towers.B ?? 0;
   const payload = workers.map((worker) => ({
     name: worker.name,
     workerType: worker.worker_type === "Subcontractor" ? "Subcontractor" as const : "Direct" as const,
@@ -158,7 +123,7 @@ export async function buildDailySummary(date?: string): Promise<DailySummary> {
       overall_progress, payload, generated_at
     ) values (
       ${summaryDateValue}, ${count("Present")}, ${count("Absent")}, ${count("MC")}, ${count("Off")},
-      ${direct}, ${subcontractor}, ${a}, ${b}, ${(a + b) / 2}, ${JSON.stringify(payload)}::jsonb, now()
+      ${direct}, ${subcontractor}, ${a}, ${b}, ${live.packages.overall}, ${JSON.stringify(payload)}::jsonb, now()
     )
     on conflict (summary_date) do update set
       present_count = excluded.present_count,

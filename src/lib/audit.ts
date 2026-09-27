@@ -28,8 +28,15 @@ export const listAuditEvents = createServerFn({ method: "GET" })
       actor_label: string;
       created_at: string;
     }>`
-      select id, action, entity_type, entity_id, summary, details::text as details_json, actor_label, created_at
-      from audit_log order by created_at desc limit ${limit}
+      select id, action, entity_type, entity_id, summary, details_json, actor_label, created_at
+      from (
+        select distinct on (action, entity_type, entity_id, summary, details::text)
+          id, action, entity_type, entity_id, summary, details::text as details_json, actor_label, created_at
+        from audit_log
+        order by action, entity_type, entity_id, summary, details::text, created_at desc
+      ) recent
+      order by created_at desc
+      limit ${limit}
     `;
     return rows.map((row) => ({
       id: row.id,

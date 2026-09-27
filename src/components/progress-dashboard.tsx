@@ -3,13 +3,8 @@ import { useMemo } from "react";
 import { Card, Badge } from "@/components/ui";
 import { pct, cn } from "@/lib/utils";
 import { useAppStore } from "@/lib/store";
-import { ITEM_META, normalizeProgress } from "@/lib/mep";
+import { computeLiveProgress } from "@/lib/mep";
 import type { DailySummary } from "@/lib/daily-summary";
-
-function average(values: Array<number | null | undefined>) {
-  const valid = values.map(normalizeProgress).filter((v): v is number => v != null);
-  return valid.length ? valid.reduce((s, v) => s + v, 0) / valid.length : null;
-}
 
 function barColor(v: number | null) {
   if (v == null) return "bg-slate-300";
@@ -24,7 +19,6 @@ type Team = { team: string; leader: string; assistants: string[] };
 export function ProgressDashboard({ dailySummary }: { dailySummary: DailySummary | null }) {
   const progression = useAppStore((s) => s.report.progression);
   const items = useAppStore((s) => s.report.items);
-  const packages = useAppStore((s) => s.report.packages);
   const teams = (useAppStore((s) => (s.report as { teams?: Team[] }).teams) ?? []) as Team[];
   const activities = useAppStore((s) => s.report.dailyReport?.activities ?? []);
 
@@ -45,27 +39,13 @@ export function ProgressDashboard({ dailySummary }: { dailySummary: DailySummary
     return presentSet.size === 0;
   };
 
-  const activeItems = items.filter((item) => ITEM_META[item]);
-  const towerOverall = (tower: "A" | "B") =>
-    average(activeItems.flatMap((item) => progression[tower].map((row) => row.items[item])));
-  const combined = average([towerOverall("A"), towerOverall("B")]);
-
-  const pkgAvg = (pkg: string) => {
-    const pkgItems = activeItems.filter((i) => ITEM_META[i]?.package === pkg);
-    return average(
-      (["A", "B"] as const).flatMap((t) =>
-        progression[t].flatMap((row) => pkgItems.map((item) => row.items[item])),
-      ),
-    );
-  };
-
-  const cw = pkgAvg("Cold Water") ?? packages?.coldWater ?? null;
-  const san = pkgAvg("Sanitary") ?? packages?.sanitary ?? null;
-  const irr = pkgAvg("Irrigation") ?? packages?.irrigation ?? null;
-  const ovr = combined ?? packages?.overall ?? null;
+  const live = computeLiveProgress(progression, items);
+  const cw = live.packages.coldWater;
+  const san = live.packages.sanitary;
+  const irr = live.packages.irrigation;
+  const ovr = live.packages.overall;
 
   const att = dailySummary?.attendance;
-  const towers = dailySummary?.towers;
   const focusActivities = activities.filter((a) => a.scope && a.scope !== "—").slice(0, 6);
 
   return (
@@ -77,20 +57,20 @@ export function ProgressDashboard({ dailySummary }: { dailySummary: DailySummary
         </div>
         <div className="rounded-xl border border-border bg-surface-2 px-3 py-3">
           <p className="text-[10px] font-semibold uppercase tracking-wide text-muted">Tower A</p>
-          <p className="mt-1 font-display text-2xl font-bold tabular-nums text-fg">{towers ? pct(towers.A) : ovr != null ? pct(towerOverall("A")) : "—"}</p>
+          <p className="mt-1 font-display text-2xl font-bold tabular-nums text-fg">{live.towers.A == null ? "—" : pct(live.towers.A)}</p>
         </div>
         <div className="rounded-xl border border-border bg-surface-2 px-3 py-3">
           <p className="text-[10px] font-semibold uppercase tracking-wide text-muted">Tower B</p>
-          <p className="mt-1 font-display text-2xl font-bold tabular-nums text-fg">{towers ? pct(towers.B) : ovr != null ? pct(towerOverall("B")) : "—"}</p>
+          <p className="mt-1 font-display text-2xl font-bold tabular-nums text-fg">{live.towers.B == null ? "—" : pct(live.towers.B)}</p>
         </div>
         <div className="col-span-2 rounded-xl border border-accent/30 bg-accent/10 px-3 py-3 sm:col-span-2">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-wide text-muted">Overall</p>
-              <p className="mt-1 font-display text-2xl font-bold tabular-nums text-accent">{towers ? pct(towers.overall) : ovr != null ? pct(ovr) : "—"}</p>
+              <p className="mt-1 font-display text-2xl font-bold tabular-nums text-accent">{pct(ovr)}</p>
             </div>
-            <div className="relative size-14 shrink-0 rounded-full" style={{ background: `conic-gradient(var(--color-accent, #2563eb) ${Math.round((towers?.overall ?? ovr ?? 0) * 100)}%, #e2e8f0 0)` }} aria-hidden>
-              <div className="absolute inset-1.5 flex items-center justify-center rounded-full bg-surface text-[11px] font-bold tabular-nums text-fg">{Math.round((towers?.overall ?? ovr ?? 0) * 100)}%</div>
+            <div className="relative size-14 shrink-0 rounded-full" style={{ background: `conic-gradient(var(--color-accent, #2563eb) ${Math.round(ovr * 100)}%, #e2e8f0 0)` }} aria-hidden>
+              <div className="absolute inset-1.5 flex items-center justify-center rounded-full bg-surface text-[11px] font-bold tabular-nums text-fg">{Math.round(ovr * 100)}%</div>
             </div>
           </div>
         </div>

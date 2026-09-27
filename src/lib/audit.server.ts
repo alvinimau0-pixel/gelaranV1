@@ -27,7 +27,7 @@ export async function recordAuditEvent(sql: Sql, event: AuditEvent): Promise<voi
   try {
     await sql`
       insert into audit_log (action, entity_type, entity_id, summary, details, actor_label, request_id, user_agent)
-      values (
+      select * from (values (
         ${event.action},
         ${event.entityType},
         ${event.entityId == null ? null : String(event.entityId)},
@@ -36,6 +36,14 @@ export async function recordAuditEvent(sql: Sql, event: AuditEvent): Promise<voi
         'shared workspace',
         ${metadata.requestId},
         ${metadata.userAgent}
+      )) as incoming(action, entity_type, entity_id, summary, details, actor_label, request_id, user_agent)
+      where not exists (
+        select 1 from audit_log existing
+        where existing.action = incoming.action
+          and existing.entity_type = incoming.entity_type
+          and existing.entity_id is not distinct from incoming.entity_id
+          and existing.summary = incoming.summary
+          and existing.details = incoming.details
       )
     `;
   } catch (error) {

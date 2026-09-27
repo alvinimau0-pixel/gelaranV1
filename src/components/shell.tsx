@@ -17,6 +17,7 @@ import { lazy, Suspense, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/lib/store";
 import { ExportDataButton } from "@/components/operations-tools";
+import { todayInKualaLumpur } from "@/lib/attendance";
 
 const GroqAssistant = lazy(() => import("@/components/groq-assistant").then((module) => ({ default: module.GroqAssistant })));
 
@@ -39,6 +40,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [open, setOpen] = useState(false);
   const report = useAppStore((s) => s.report);
+  const today = todayInKualaLumpur();
   const isEntry = pathname === "/";
 
   return (
@@ -68,7 +70,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           </Link>
           <div className="hidden items-center gap-2 text-xs text-muted lg:flex">
             <span className="rounded-full bg-surface-2 px-3 py-1 font-medium text-fg transition-colors">
-              {report.meta.reportDate}
+              {today.iso} · Malaysia
             </span>
             <span className="rounded-full bg-ok-bg px-3 py-1 font-medium text-ok">
               {report.site.weather} · {report.site.shift}

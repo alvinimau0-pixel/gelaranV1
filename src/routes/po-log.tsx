@@ -6,23 +6,28 @@ import { rm } from "@/lib/utils";
 export const Route = createFileRoute("/po-log")({ component: PoLog });
 
 function PoLog() {
-  const p = report.poSummary;
+  const orders = report.orders;
+  const toOrder = orders.filter((row) => row.balance > 0);
+  const partial = orders.filter((row) => row.ordered > 0 && row.balance > 0);
+  const complete = orders.filter((row) => row.balance <= 0);
+  const ordered = orders.filter((row) => row.ordered > 0);
+  const balance = toOrder.reduce((sum, row) => sum + row.balance, 0);
   return (
     <div className="space-y-6">
       <div>
         <h1 className="font-display text-3xl font-semibold">PO log</h1>
-        <p className="mt-1 text-sm text-muted">No purchase orders recorded in this report.</p>
+        <p className="mt-1 text-sm text-muted">Approved purchase-order requirements and outstanding materials.</p>
       </div>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat label="POs" value={String(p.pos)} />
-        <Stat label="To order" value={String(p.toOrder)} delay={40} />
-        <Stat label="Partial" value={String(p.partial)} delay={80} />
-        <Stat label="Complete" value={String(p.complete)} delay={120} />
+        <Stat label="PO lines" value={String(ordered.length)} />
+        <Stat label="To order" value={String(toOrder.length)} delay={40} />
+        <Stat label="Partial" value={String(partial.length)} delay={80} />
+        <Stat label="Complete" value={String(complete.length)} delay={120} />
       </div>
       <Card>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-display text-lg font-semibold">Outstanding materials</h2>
-          <Badge tone="bad">0 POs · {rm(p.amount)}</Badge>
+          <Badge tone="bad">{toOrder.length} lines · {rm(balance)}</Badge>
         </div>
         <TableWrap>
           <thead>

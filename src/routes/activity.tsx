@@ -13,6 +13,20 @@ function formatDate(value: string): string {
   }).format(new Date(value));
 }
 
+function readableAction(action: string): string {
+  const labels: Record<string, string> = {
+    "daily_summary.generated": "Daily summary generated",
+    "progression.range_updated": "MEP range updated",
+    "progression.replaced": "MEP progression replaced",
+    "progression.reseeded": "MEP progression normalized",
+    "attendance.updated": "Attendance updated",
+    "attendance.team_updated": "Team attendance updated",
+    "attendance.cleared": "Attendance cleared",
+    "worker.type_updated": "Worker classification updated",
+  };
+  return labels[action] ?? action.replace(/[._]/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
 function ActivityPage() {
   const [events, setEvents] = useState<AuditRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,7 +70,7 @@ function ActivityPage() {
               <article key={event.id} className="flex flex-col gap-2 p-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-full bg-accent/15 px-2 py-0.5 text-[11px] font-semibold text-accent">{event.action}</span>
+                    <span className="rounded-full bg-accent/15 px-2 py-0.5 text-[11px] font-semibold text-accent">{readableAction(event.action)}</span>
                     <span className="text-xs text-muted">{event.actorLabel}</span>
                   </div>
                   <p className="mt-1 text-sm font-medium text-fg">{event.summary}</p>

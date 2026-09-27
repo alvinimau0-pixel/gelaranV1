@@ -61,7 +61,7 @@ function PhotosPage() {
           </p>
         </div>
         <Badge tone="accent">
-          {photos.length} photo{photos.length === 1 ? "" : "s"}
+          {loaded ? `${photos.length} photo${photos.length === 1 ? "" : "s"}` : "Loading photos…"}
         </Badge>
       </div>
 

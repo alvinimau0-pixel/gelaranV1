@@ -1,5 +1,6 @@
 import meta from "./seed-meta.json";
 import prog from "./seed-prog.json";
+import approved from "./report-data.json";
 
 export type ProgressRow = {
   level: string;
@@ -65,4 +66,21 @@ export type ReportData = Omit<
   progression: ProgressionData;
 };
 
-export const report = { ...meta, ...prog } as unknown as ReportData;
+const seed = { ...meta, ...prog } as unknown as ReportData;
+const approvedData = approved as unknown as Partial<ReportData>;
+
+function fallbackRows<T>(active: T[] | undefined, approvedRows: T[] | undefined): T[] {
+  return active?.length ? active : approvedRows ?? [];
+}
+
+export const report = {
+  ...seed,
+  floors: fallbackRows(seed.floors, approvedData.floors),
+  orders: fallbackRows(seed.orders, approvedData.orders),
+  aipoon: fallbackRows(seed.aipoon, approvedData.aipoon),
+  ariyan: fallbackRows(seed.ariyan, approvedData.ariyan),
+  aipoonTotal: seed.aipoonTotal || approvedData.aipoonTotal || 0,
+  aipoonClaimed: seed.aipoonClaimed || approvedData.aipoonClaimed || 0,
+  ariyanTotal: seed.ariyanTotal || approvedData.ariyanTotal || 0,
+  ariyanClaimed: seed.ariyanClaimed || approvedData.ariyanClaimed || 0,
+} as ReportData;

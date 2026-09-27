@@ -1,8 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
-  Camera,
   CheckCircle2,
   ClipboardList,
   HardHat,
@@ -16,7 +15,7 @@ import { Badge, Card } from "@/components/ui";
 import { MepMatrix } from "@/components/mep-matrix";
 import { pct, cn } from "@/lib/utils";
 import { useAppStore } from "@/lib/store";
-import { ITEM_META, PACKAGES, normalizeProgress } from "@/lib/mep";
+import { ITEM_META, PACKAGES, computeLiveProgress, normalizeProgress } from "@/lib/mep";
 import { todayInKualaLumpur } from "@/lib/attendance";
 import { listSitePhotos, createSitePhoto, type SitePhoto } from "@/lib/photos";
 import { compressImageToBase64 } from "@/lib/image-compress";
@@ -36,9 +35,13 @@ function CombinedProgressDashboard() {
   const [filter, setFilter] = useState<(typeof PACKAGES)[number]>("All");
   const activeItems = items.filter((item) => ITEM_META[item]);
   const visibleItems = filter === "All" ? activeItems : activeItems.filter((item) => ITEM_META[item]?.package === filter);
-  const itemProgress = (tower: "A" | "B", item: string) => average(progression[tower].map((row) => row.items[item]));
-  const towerOverall = (tower: "A" | "B") => average(activeItems.flatMap((item) => progression[tower].map((row) => row.items[item])));
-  const combinedOverall = average([towerOverall("A"), towerOverall("B")]);
+  const live = computeLiveProgress(progression, items);
+  const itemProgress = (tower: "A" | "B", item: string) => {
+    const values = progression[tower].flatMap((row) => row.items[item]).filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+    return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
+  };
+  const towerOverall = (tower: "A" | "B") => live.towers[tower];
+  const combinedOverall = live.packages.overall;
 
   return (
     <Card>
@@ -114,6 +117,7 @@ function Home() {
   const report = useAppStore((state) => state.report);
   const s = report.site;
   const today = todayInKualaLumpur();
+  const live = computeLiveProgress(report.progression, report.items);
   const fileRef = useRef<HTMLInputElement>(null);
   const [photos, setPhotos] = useState<SitePhoto[]>([]);
   const [photoIdx, setPhotoIdx] = useState(0);
@@ -181,11 +185,11 @@ function Home() {
         <div>
           <h1 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">Site dashboard</h1>
           <p className="mt-0.5 text-xs text-muted sm:text-sm">
-            {s.today} · {s.weather} · {s.shift} · {pct(s.overall)} overall
+            Dashboard date {today.iso} (Malaysia) · {s.weather} · {s.shift} · {pct(live.packages.overall)} overall
           </p>
         </div>
         <div className="flex flex-wrap gap-1.5">
-          <Badge tone="accent">{s.men} workers planned</Badge>
+          <Badge tone="accent">{report.dailyReport.totalWorkers} total planned people</Badge>
         </div>
       </div>
 
@@ -204,7 +208,7 @@ function Home() {
               />
               <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent p-3 sm:p-4">
                 <p className="text-sm font-semibold text-white">{featured.title}</p>
-                <p className="text-xs text-white/70">{featured.date}</p>
+                <p className="text-xs text-white/70">{featured.photoDate}</p>
               </div>
             </>
           ) : (
@@ -281,17 +285,21 @@ function Home() {
         </div>
         <div className="mb-4 overflow-hidden rounded-xl border border-border bg-surface-2/50">
           <div className="space-y-2.5 px-3 py-3">
-            {report.dailyReport.laborDistribution.map((group) => (
+            {report.dailyReport.laborDistribution.map((group) => {
+              const plannedTotal = report.dailyReport.laborDistribution.reduce((sum, item) => sum + item.workers, 0);
+              const percentage = plannedTotal ? Math.round((group.workers / plannedTotal) * 100) : 0;
+              return (
               <div key={group.label}>
                 <div className="mb-1 flex items-center justify-between gap-3 text-xs">
                   <span className="min-w-0 truncate font-medium text-fg">{group.label}</span>
-                  <span className="shrink-0 font-mono font-bold tabular-nums text-muted">{group.workers} · {Math.round((group.workers / report.dailyReport.totalWorkers) * 100)}%</span>
+                  <span className="shrink-0 font-mono font-bold tabular-nums text-muted">{group.workers} planned · {percentage}% of planned people</span>
                 </div>
                 <div className="h-2.5 overflow-hidden rounded-full bg-surface">
-                  <div className={cn("h-full rounded-full", group.color)} style={{ width: `${(group.workers / report.dailyReport.totalWorkers) * 100}%` }} />
+                  <div className={cn("h-full rounded-full", group.color)} style={{ width: `${percentage}%` }} />
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
         <div className="overflow-x-auto rounded-xl border border-border">

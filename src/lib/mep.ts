@@ -194,6 +194,9 @@ export function computePackageProgress(progression: ProgressionLike): {
   irrigation: number;
   overall: number;
 } {
+  const live = computeLiveProgress(progression);
+  return { coldWater: live.packages.coldWater, sanitary: live.packages.sanitary, irrigation: live.packages.irrigation, overall: live.packages.overall };
+  /*
   const buckets: Record<MepPackage, number[]> = {
     "Cold Water": [],
     "Flush Water": [],
@@ -247,4 +250,33 @@ export function computePackageProgress(progression: ProgressionLike): {
   const irrigation = Math.max(0, Math.min(1, baseline.irrigation + current.irrigation - base.irrigation));
   const overall = Math.max(0, Math.min(1, report.packages.overall + (coldWater - baseline.coldWater) * 0.55 + (sanitary - baseline.sanitary) * 0.3 + (irrigation - baseline.irrigation) * 0.15));
   return { coldWater, sanitary, irrigation, overall };
+  */
+}
+
+export type LiveProgress = {
+  towers: { A: number | null; B: number | null };
+  packages: { coldWater: number; sanitary: number; irrigation: number; overall: number };
+  floors: { level: string; A: number | null; B: number | null }[];
+};
+
+/** The floor-level progression snapshot is the sole source of truth for displayed MEP progress. */
+export function computeLiveProgress(progression: ProgressionLike, items: string[] = report.items): LiveProgress {
+  const activeItems = items.filter((item) => ITEM_META[item]);
+  const average = (values: Array<number | null | undefined>) => {
+    const valid = values.map(normalizeProgress).filter((value): value is number => value != null);
+    return valid.length ? valid.reduce((sum, value) => sum + value, 0) / valid.length : null;
+  };
+  const tower = (name: "A" | "B") => average((progression[name] ?? []).flatMap((row) => activeItems.map((item) => row.items?.[item])));
+  const packageValue = (pkg: MepPackage) => average(((["A", "B"] as const)).flatMap((name) =>
+    (progression[name] ?? []).flatMap((row) => activeItems.filter((item) => ITEM_META[item]?.package === pkg).map((item) => row.items?.[item]))),
+  ) ?? 0;
+  const coldWater = packageValue("Cold Water");
+  const sanitary = packageValue("Sanitary");
+  const irrigation = packageValue("Irrigation");
+  const overall = average([tower("A"), tower("B")]) ?? 0;
+  return {
+    towers: { A: tower("A"), B: tower("B") },
+    packages: { coldWater, sanitary, irrigation, overall },
+    floors: (progression.A ?? []).map((row, index) => ({ level: row.level, A: average(activeItems.map((item) => row.items?.[item])), B: average(activeItems.map((item) => progression.B?.[index]?.items?.[item])) })),
+  };
 }

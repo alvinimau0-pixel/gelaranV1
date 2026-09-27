@@ -5,7 +5,11 @@ import { Badge, Card, Stat, TableWrap, Td, Th } from "@/components/ui";
 export const Route = createFileRoute("/material")({ component: Material });
 
 function Material() {
-  const t = report.orderTotals;
+  const orders = report.orders;
+  const total = orders.reduce((sum, row) => sum + row.required, 0);
+  const ordered = orders.reduce((sum, row) => sum + row.ordered, 0);
+  const balance = orders.reduce((sum, row) => sum + row.balance, 0);
+  const packageTotal = (pkg: string) => orders.filter((row) => row.package === pkg).reduce((sum, row) => sum + row.required, 0);
   return (
     <div className="space-y-6">
       <div>
@@ -15,15 +19,15 @@ function Material() {
         </p>
       </div>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat label="Required" value={String(t.total)} hint="All packages" />
-        <Stat label="Ordered" value={String(t.ordered)} hint="POs placed" delay={40} />
-        <Stat label="Balance" value={String(t.total)} hint="Still to order" delay={80} />
-        <Stat label="Lines" value={String(report.poSummary.toOrder)} hint="To Order" delay={120} />
+        <Stat label="Required" value={String(total)} hint="Rendered approved rows" />
+        <Stat label="Ordered" value={String(ordered)} hint="Rendered approved rows" delay={40} />
+        <Stat label="Balance" value={String(balance)} hint="Still to order" delay={80} />
+        <Stat label="Lines to order" value={String(orders.filter((row) => row.balance > 0).length)} hint="Rendered rows" delay={120} />
       </div>
       <div className="grid gap-3 sm:grid-cols-3">
-        <Stat label="Cold water qty" value={String(t.coldWater)} />
-        <Stat label="Sanitary qty" value={String(t.sanitary)} delay={40} />
-        <Stat label="Irrigation qty" value={String(t.irrigation)} delay={80} />
+        <Stat label="Cold water qty" value={String(packageTotal("Cold Water"))} />
+        <Stat label="Sanitary qty" value={String(packageTotal("Sanitary"))} delay={40} />
+        <Stat label="Irrigation qty" value={String(packageTotal("Irrigation"))} delay={80} />
       </div>
       <Card>
         <h2 className="mb-4 font-display text-lg font-semibold">Order book</h2>
