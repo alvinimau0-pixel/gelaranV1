@@ -20,10 +20,10 @@ export function ProgressionSync() {
         const store = useAppStore.getState();
         store.updateReport({ progression });
         store.updateSite({
-          coldWater: pkgs.coldWater,
-          sanitary: pkgs.sanitary,
-          irrigation: pkgs.irrigation,
-          overall: pkgs.overall,
+          coldWater: pkgs.coldWater ?? 0,
+          sanitary: pkgs.sanitary ?? 0,
+          irrigation: pkgs.irrigation ?? 0,
+          overall: pkgs.overall ?? 0,
         });
       } catch (err) {
         console.error("[progression-sync] hydrate failed", err);
