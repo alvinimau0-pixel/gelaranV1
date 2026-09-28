@@ -1,0 +1,55 @@
+name: Production uptime monitor
+
+on:
+  schedule:
+    # Every 15 minutes. GitHub may delay scheduled runs during high load.
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Base URL to check"
+        required: false
+        default: "https://gelaran-v1-gm-2030.vercel.app"
+        type: string
+
+concurrency:
+  group: production-uptime-monitor
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  monitor:
+    name: Check production /home and daily summary API
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SYNTHETIC_BASE_URL: ${{ inputs.base_url || 'https://gelaran-v1-gm-2030.vercel.app' }}
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.x"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run uptime and synthetic checks
+        run: node scripts/uptime-smoke.mjs | tee uptime-report.json
+
+      - name: Upload monitor report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: uptime-report-${{ github.run_id }}
+          path: uptime-report.json
+          if-no-files-found: error
+          retention-days: 14
