@@ -115,13 +115,13 @@ export async function buildDailySummary(date?: string) {
     )
   `;
 
-  const workers = await sql<WorkerRow>`
-    select w.name, w.worker_type, coalesce(a.status, 'Blank') as status,
-      a.check_in, a.check_out
-    from workers w
-    left join attendance a on a.worker_id = w.id and a.date = ${summaryDateValue}::date
-    order by w.name
-  `;
+	  const workers = await sql<WorkerRow>`
+	    select w.name, w.worker_type, coalesce(a.status, 'Blank') as status,
+	      a.check_in, a.check_out
+	    from workers w
+	    left join attendance a on a.worker_id = w.id and a.attendance_date = ${summaryDateValue}::date
+	    order by w.name
+	  `;
 
   let present = 0, absent = 0, mc = 0, off = 0, direct = 0, sub = 0;
   const payload = workers.map((w) => {
