@@ -7,9 +7,9 @@ const configuredBases = (process.env.E2E_BASE_URLS ?? "")
 const targets = (
   configuredBases.length
     ? configuredBases
-    : ["https://gelaran-v1-gm-2030.vercel.app", "https://gelaran-v1-bhwfkbw06-gm-2030.vercel.app"]
+    : ["https://gelaran-v1-gm-2030.vercel.app"]
 ).map((base) => ({
-  name: base.includes("bhwfkbw06") ? "ready-deployment" : "production",
+  name: "production",
   base,
 }));
 const routes = [
@@ -35,14 +35,21 @@ async function testTarget(target) {
   const errors = [];
   const attach = (page, label) => {
     page.on("console", (message) => {
-      if (message.type() === "error") errors.push(`${label}:console:${message.text()}`);
+      if (
+        message.type() === "error" &&
+        !message.text().includes("grok.com/grok-app-builder/extensions.js")
+      ) {
+        errors.push(`${label}:console:${message.text()}`);
+      }
     });
     page.on("pageerror", (error) => errors.push(`${label}:page:${error.message}`));
-    page.on("requestfailed", (request) =>
+    page.on("requestfailed", (request) => {
+      // The sandbox injects this optional extension; it is not part of the app.
+      if (request.url() === "https://grok.com/grok-app-builder/extensions.js") return;
       errors.push(
         `${label}:request:${request.url()} :: ${request.failure()?.errorText ?? "failed"}`,
-      ),
-    );
+      );
+    });
   };
   attach(desktop, "desktop");
   attach(mobile, "mobile");
@@ -73,7 +80,7 @@ async function testTarget(target) {
     });
     if (route === "home") {
       routeResult.assertions.push({
-        name: "overview progress/dashboard content",
+        name: "overview progress/home content",
         pass: bodyText.includes("Tower A") && bodyText.includes("Tower B"),
       });
       routeResult.assertions.push({
