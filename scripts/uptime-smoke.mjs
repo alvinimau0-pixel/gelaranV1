@@ -16,6 +16,10 @@ async function httpCheck(path, check) {
       url,
       status: response.status,
       durationMs: Date.now() - started,
+      bodySizeBytes: Buffer.byteLength(body, "utf8"),
+      contentLengthHeaderBytes: response.headers.has("content-length")
+        ? Number(response.headers.get("content-length"))
+        : null,
       pass: response.ok && check(body),
     };
     if (!result.pass) result.error = "Unexpected status or response body";
@@ -49,12 +53,53 @@ try {
   const response = await page.goto(`${base}/home`, { waitUntil: "domcontentloaded", timeout: 30_000 });
   await page.getByText("Site dashboard", { exact: true }).waitFor({ state: "visible", timeout: 15_000 });
   const bodyText = await page.locator("body").innerText();
+  let bodySizeBytes = null;
+  if (response) {
+    try {
+      bodySizeBytes = (await response.body()).byteLength;
+    } catch {
+      bodySizeBytes = null;
+    }
+  }
+  const webVitals = await page.evaluate(
+    () =>
+      new Promise((resolve) => {
+        let lcpMs = null;
+        let cls = 0;
+        const lcpObserver = new PerformanceObserver((list) => {
+          const entries = list.getEntries();
+          const last = entries.at(-1);
+          if (last) lcpMs = last.startTime;
+        });
+        const clsObserver = new PerformanceObserver((list) => {
+          for (const entry of list.getEntries()) {
+            if (!entry.hadRecentInput) cls += entry.value;
+          }
+        });
+        try {
+          lcpObserver.observe({ type: "largest-contentful-paint", buffered: true });
+          clsObserver.observe({ type: "layout-shift", buffered: true });
+        } catch {
+          lcpObserver.disconnect();
+          clsObserver.disconnect();
+          resolve({ lcpMs: null, cls: 0 });
+          return;
+        }
+        setTimeout(() => {
+          lcpObserver.disconnect();
+          clsObserver.disconnect();
+          resolve({ lcpMs, cls: Number(cls.toFixed(4)) });
+        }, 250);
+      }),
+  );
   results.push({
     type: "synthetic",
     path: "/home",
     url: `${base}/home`,
     status: response?.status() ?? 0,
     durationMs: Date.now() - started,
+    bodySizeBytes,
+    webVitals,
     pass: response?.status() === 200 && bodyText.includes("Tower A") && bodyText.includes("Tower B"),
   });
 } catch (error) {
