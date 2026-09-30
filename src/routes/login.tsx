@@ -17,15 +17,32 @@ function SupervisorLogin() {
     event.preventDefault();
     setError(null);
     setLoading(true);
-    const email = identifier.includes("@") ? identifier.trim() : `${identifier.trim()}@gelaran.local`;
-    const result = await authClient.signIn.email({ email, password });
-    setLoading(false);
-    if (result.error) {
-      setError(result.error.message ?? "Login failed. Check the supervisor account details.");
-      return;
+    const normalizedIdentifier = identifier.trim();
+    const email = normalizedIdentifier.includes("@")
+      ? normalizedIdentifier
+      : `${normalizedIdentifier}@gelaran.local`;
+
+    try {
+      const result = await authClient.signIn.email({ email, password });
+      if (result.error) {
+        setError(
+          result.error.message ??
+            "Login failed. Check the supervisor account details.",
+        );
+        return;
+      }
+      await navigate({ to: "/home" });
+      window.location.reload();
+    } catch {
+      // Better Auth can reject the request when the backing database is
+      // unavailable (for example, when the database provider quota is
+      // exhausted). Keep the form usable and show an actionable message.
+      setError(
+        "The login service is temporarily unavailable. Please try again shortly.",
+      );
+    } finally {
+      setLoading(false);
     }
-    await navigate({ to: "/home" });
-    window.location.reload();
   }
 
   return (
